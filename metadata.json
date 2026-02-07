@@ -1,0 +1,7 @@
+{
+  "name": "ASCA Seleção",
+  "description": "Sistema avançado de gestão de grupos de poupança e crédito rotativo (ASCA/PCR) com análise inteligente via IA.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

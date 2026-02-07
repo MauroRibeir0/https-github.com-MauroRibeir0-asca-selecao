@@ -32,7 +32,6 @@ const App: React.FC = () => {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
 
   useEffect(() => {
-    // Auth Check
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
@@ -100,39 +99,41 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen pb-24 max-w-md mx-auto bg-white shadow-xl relative overflow-hidden">
-      <header className="bg-[#aa0000] text-white p-6 sticky top-0 z-50 rounded-b-3xl shadow-lg">
+    <div className="min-h-screen pb-24 max-w-md mx-auto bg-white shadow-xl relative flex flex-col h-full overflow-hidden">
+      {/* Header com Safe Area Top */}
+      <header className="bg-[#aa0000] text-white p-6 pt-10 sticky top-0 z-50 rounded-b-[2.5rem] shadow-lg safe-area-pt">
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">ASCA Seleção</h1>
-            <p className="text-xs opacity-80 uppercase tracking-widest font-medium">Gestão em Tempo Real</p>
+            <p className="text-[10px] opacity-80 uppercase tracking-widest font-bold">Ribeiro, Lda.</p>
           </div>
-          <button onClick={() => supabase.auth.signOut()} className="bg-white/20 p-2 rounded-full active:scale-95 transition-transform">
+          <button onClick={() => supabase.auth.signOut()} className="bg-white/20 p-3 rounded-2xl active:scale-95 transition-transform backdrop-blur-md">
             <Bell size={20} />
           </button>
         </div>
       </header>
 
-      <main className="px-4 pt-6 animate-slide-up">
+      {/* Main content area */}
+      <main className="flex-1 overflow-y-auto px-4 pt-6 animate-slide-up pb-10">
         {renderContent()}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-100 px-4 py-3 flex justify-between items-center z-50 max-w-md mx-auto rounded-t-3xl shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
-        <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={22} />} label="Início" />
-        <NavButton active={activeTab === 'members'} onClick={() => setActiveTab('members')} icon={<Users size={22} />} label="Membros" />
-        <NavButton active={activeTab === 'savings'} onClick={() => setActiveTab('savings')} icon={<PiggyBank size={22} />} label="Poupança" />
-        <NavButton active={activeTab === 'loans'} onClick={() => setActiveTab('loans')} icon={<CreditCard size={22} />} label="Crédito" />
-        <NavButton active={activeTab === 'reports'} onClick={() => setActiveTab('reports')} icon={<FileText size={22} />} label="Relatórios" />
-        <NavButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={<SettingsIcon size={22} />} label="Ajustes" />
+      {/* Bottom Nav com Safe Area Bottom */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 px-6 py-4 flex justify-between items-center z-50 max-w-md mx-auto rounded-t-[2.5rem] shadow-[0_-8px_30px_rgba(0,0,0,0.08)] safe-area-pb">
+        <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={24} />} label="Home" />
+        <NavButton active={activeTab === 'members'} onClick={() => setActiveTab('members')} icon={<Users size={24} />} label="Membros" />
+        <NavButton active={activeTab === 'savings'} onClick={() => setActiveTab('savings')} icon={<PiggyBank size={24} />} label="Poupar" />
+        <NavButton active={activeTab === 'loans'} onClick={() => setActiveTab('loans')} icon={<CreditCard size={24} />} label="Crédito" />
+        <NavButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={<SettingsIcon size={24} />} label="Ajustes" />
       </nav>
     </div>
   );
 };
 
 const NavButton: React.FC<{ active: boolean, onClick: () => void, icon: React.ReactNode, label: string }> = ({ active, onClick, icon, label }) => (
-  <button onClick={onClick} className={`flex flex-col items-center gap-1 transition-all duration-300 px-2 ${active ? 'text-[#aa0000] scale-110' : 'text-gray-400'}`}>
-    <div className={`${active ? 'bg-[#aa0000]/10 p-2 rounded-xl' : ''}`}>{icon}</div>
-    <span className={`text-[10px] font-semibold ${active ? 'opacity-100' : 'opacity-0'}`}>{label}</span>
+  <button onClick={onClick} className={`flex flex-col items-center gap-1 transition-all duration-300 ${active ? 'text-[#aa0000] scale-110' : 'text-gray-400'}`}>
+    <div className={`${active ? 'bg-[#aa0000]/10 p-2 rounded-2xl' : ''}`}>{icon}</div>
+    <span className={`text-[9px] font-bold uppercase tracking-tighter ${active ? 'opacity-100' : 'opacity-60'}`}>{label}</span>
   </button>
 );
 

@@ -1,0 +1,25 @@
+
+{
+  "name": "ASCA Seleção - Ribeiro, Lda.",
+  "short_name": "ASCA Seleção",
+  "description": "Sistema de Gestão de Poupança e Crédito Rotativo",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f3f4f6",
+  "theme_color": "#aa0000",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/5833/5833852.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/5833/5833852.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

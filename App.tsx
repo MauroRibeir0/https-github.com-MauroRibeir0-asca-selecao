@@ -4,19 +4,20 @@ import {
   LayoutDashboard, 
   Users, 
   PiggyBank, 
-  CreditCard, 
+  HandCoins, 
   FileText, 
-  Settings as SettingsIcon,
-  Bell,
+  ShieldCheck,
   Loader2,
   Lock,
   Menu as MenuIcon,
   X,
   User,
-  ShieldCheck,
   LogOut,
   ChevronRight,
-  ShieldEllipsis
+  ShieldEllipsis,
+  Database,
+  KeyRound,
+  RefreshCw
 } from 'lucide-react';
 import { supabase } from './lib/supabase.ts';
 import Dashboard from './components/Dashboard.tsx';
@@ -33,11 +34,13 @@ const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
   const [currentUser, setCurrentUser] = useState<Member | null>(null);
   const [loading, setLoading] = useState(true);
+  const [dbError, setDbError] = useState<string | null>(null);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  
   const [activeTab, setActiveTab] = useState<'dashboard' | 'members' | 'savings' | 'loans' | 'reports' | 'settings'>('dashboard');
   const [settings, setSettings] = useState<SystemSettings>(INITIAL_SETTINGS);
-  const [showNotifications, setShowNotifications] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
-  const [showRules, setShowRules] = useState(false);
   const [globalSelectedMember, setGlobalSelectedMember] = useState<Member | null>(null);
   
   const [members, setMembers] = useState<Member[]>([]);
@@ -48,12 +51,14 @@ const App: React.FC = () => {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      if (!session) setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      if (!_event.includes('SIGNED_IN')) {
+      if (!session) {
         setCurrentUser(null);
+        setLoading(false);
       }
     });
 
@@ -61,303 +66,222 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (session) {
-      fetchData();
-    }
+    if (session) fetchData();
   }, [session]);
 
   const fetchData = async () => {
     setLoading(true);
+    setDbError(null);
     try {
       const [mems, savs, lns, sets] = await Promise.all([
         supabase.from('members').select('*').order('name'),
         supabase.from('savings').select('*').order('date', { ascending: false }),
         supabase.from('loans').select('*').order('requested_at', { ascending: false }),
-        supabase.from('settings').select('*').single()
+        supabase.from('settings').select('*').maybeSingle()
       ]);
 
       if (sets.data) {
         setSettings({
-          joiaAmount: sets.data.joia_amount,
-          minMensalidade: sets.data.min_mensalidade,
-          maxMensalidade: sets.data.max_mensalidade,
-          lateFeeRate: sets.data.late_fee_rate,
-          minMovementForInterest: sets.data.min_movement_for_interest,
-          fixedInterestReturn: sets.data.fixed_interest_return,
-          managementFeePerMember: sets.data.management_fee_per_member,
-          loanInterestRate: sets.data.loan_interest_rate
+          joiaAmount: Number(sets.data.joia_amount) || INITIAL_SETTINGS.joiaAmount,
+          minMensalidade: Number(sets.data.min_mensalidade) || INITIAL_SETTINGS.minMensalidade,
+          maxMensalidade: Number(sets.data.max_mensalidade) || INITIAL_SETTINGS.maxMensalidade,
+          lateFeeRate: Number(sets.data.late_fee_rate) || INITIAL_SETTINGS.lateFeeRate,
+          minMovementForInterest: Number(sets.data.min_movement_for_interest) || INITIAL_SETTINGS.minMovementForInterest,
+          fixedInterestReturn: Number(sets.data.fixed_interest_return) || INITIAL_SETTINGS.fixedInterestReturn,
+          managementFeePerMember: Number(sets.data.management_fee_per_member) || INITIAL_SETTINGS.managementFeePerMember,
+          loanInterestRate: Number(sets.data.loan_interest_rate) || INITIAL_SETTINGS.loanInterestRate
         });
       }
 
       const mappedLoans: Loan[] = (lns.data || []).map((l: any) => ({
         id: l.id,
         memberId: l.member_id,
-        amount: l.amount,
-        interestRate: l.interest_rate,
-        requestedAt: l.requested_at,
-        dueDate: l.due_date,
+        amount: Number(l.amount),
+        interest_rate: Number(l.interest_rate),
+        requested_at: l.requested_at,
+        due_date: l.due_date,
         paidAt: l.paid_at,
         status: l.status,
-        totalRepayment: l.total_repayment
+        totalRepayment: Number(l.total_repayment)
       }));
       setLoans(mappedLoans);
 
       const mappedSavings: Saving[] = (savs.data || []).map((s: any) => ({
         id: s.id,
         memberId: s.member_id,
-        amount: s.amount,
+        amount: Number(s.amount),
         date: s.date,
-        lateFee: s.late_fee || 0,
+        lateFee: Number(s.late_fee || 0),
         month: s.month
       }));
       setSavings(mappedSavings);
 
-      const allMembers = (mems.data || []).map((m: any) => {
-        const memberLoans = mappedLoans.filter(l => l.memberId === m.id);
-        const memberSavings = mappedSavings.filter(s => s.memberId === m.id);
-        const totalSavings = memberSavings.reduce((acc, s) => acc + s.amount, 0);
-        const totalLoansTaken = memberLoans.reduce((acc, l) => acc + l.amount, 0);
-        const target = sets.data?.min_movement_for_interest || 50000;
-        const eligibilityProgress = Math.min(totalLoansTaken / target, 1);
-
+      const allMembers: Member[] = (mems.data || []).map((m: any) => {
+        const totalLoansTaken = mappedLoans.filter(l => l.memberId === m.id).reduce((acc, l) => acc + l.amount, 0);
         return {
           id: m.id,
           userId: m.user_id,
-          // Normalização para garantir que 'Admin' ou 'ADMIN' no DB vire 'admin'
-          role: (m.role || 'member').toLowerCase() as 'admin' | 'member',
+          role: (m.role || 'member').toLowerCase().trim() as 'admin' | 'member',
           name: m.name,
-          email: m.email,
+          email: (m.email || '').toLowerCase().trim(),
           phone: m.phone,
-          address: m.address,
           avatar: m.avatar,
           joinedAt: m.created_at,
-          joiaPaid: m.joia_paid,
-          totalSavings: totalSavings,
+          joiaPaid: !!m.joia_paid,
+          mustChangePassword: !!m.must_change_password,
+          totalSavings: mappedSavings.filter(s => s.memberId === m.id).reduce((acc, s) => acc + s.amount, 0),
           totalLoansTaken: totalLoansTaken,
-          eligibilityProgress: eligibilityProgress
+          eligibilityProgress: Math.min(totalLoansTaken / settings.minMovementForInterest, 1)
         };
       });
 
       setMembers(allMembers);
 
-      const userProfile = allMembers.find(m => m.email.toLowerCase() === session.user.email.toLowerCase()) || null;
-      setCurrentUser(userProfile);
+      if (session?.user?.email) {
+        const loggedEmail = session.user.email.toLowerCase().trim();
+        const userProfile = allMembers.find(m => m.email === loggedEmail) || null;
+        setCurrentUser(userProfile);
+        if (userProfile?.mustChangePassword) setIsChangingPassword(true);
+      }
 
       setMeetings([
-        { id: '1', date: '2025-12-15', status: 'completed', description: 'Reunião de Abertura do Ciclo' },
-        { id: '2', date: '2026-04-10', status: 'pending', description: 'Reunião de Balanço Semestral' },
-        { id: '3', date: '2026-11-20', status: 'pending', description: 'Reunião de Fecho e Partilha' },
+        { id: '1', date: '2025-12-15', status: 'completed', description: 'Abertura do Ciclo' },
+        { id: '2', date: '2026-04-10', status: 'pending', description: 'Revisão de Metas' },
       ]);
 
     } catch (error) {
-      console.error("Erro crítico de sincronização:", error);
+      console.error("Erro Supabase:", error);
+      setDbError("Erro de ligação aos dados.");
     } finally {
       setLoading(false);
     }
   };
 
-  const isAdmin = currentUser?.role === 'admin';
-
-  const stats = useMemo(() => {
-    const totalGroupSavings = savings.reduce((acc, s) => acc + Number(s.amount), 0);
-    const activeLoans = loans.filter(l => l.status === 'active').reduce((acc, l) => acc + Number(l.amount), 0);
-    const totalLateFees = savings.reduce((acc, s) => acc + Number(s.lateFee), 0);
-    const totalLoanInterests = loans.reduce((acc, l) => acc + (l.totalRepayment - l.amount), 0);
-    return { totalGroupSavings, activeLoans, totalLateFees, totalLoanInterests };
-  }, [savings, loans]);
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 6) return alert("Mínimo 6 caracteres.");
+    setLoading(true);
+    try {
+      await supabase.auth.updateUser({ password: newPassword });
+      if (currentUser) await supabase.from('members').update({ must_change_password: false }).eq('id', currentUser.id);
+      setIsChangingPassword(false);
+      fetchData();
+    } catch (err: any) {
+      alert("Erro: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setShowMenu(false);
   };
 
-  if (!session) return <Auth onLogin={() => fetchData()} />;
-
   if (loading) return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-white gap-4">
-      <Loader2 className="animate-spin text-[#aa0000]" size={48} />
-      <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Sincronizando Sessão Ribeiro...</p>
+    <div className="fixed inset-0 flex flex-col items-center justify-center bg-white z-[999]">
+      <Loader2 className="animate-spin text-[#aa0000]" size={40} />
+      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-4">Carregando ASCA...</p>
     </div>
   );
 
-  const renderContent = () => {
-    switch(activeTab) {
-      case 'dashboard': return <Dashboard stats={stats} meetings={meetings} members={members} savings={savings} loans={loans} currentUser={currentUser} />;
-      case 'members': return <Members members={members} settings={settings} savings={savings} loans={loans} isAdmin={isAdmin} currentUser={currentUser} refreshData={fetchData} externalSelected={globalSelectedMember} setExternalSelected={setGlobalSelectedMember} />;
-      case 'savings': return <Savings savings={savings} refreshData={fetchData} members={members} settings={settings} currentUser={currentUser} isAdmin={isAdmin} />;
-      case 'loans': return <Loans loans={loans} refreshData={fetchData} members={members} settings={settings} currentUser={currentUser} isAdmin={isAdmin} />;
-      case 'reports': return <Reports members={members} savings={savings} loans={loans} stats={stats} settings={settings} currentUser={currentUser} isAdmin={isAdmin} />;
-      case 'settings': 
-        return isAdmin ? <Settings settings={settings} refreshData={fetchData} /> : <div className="p-10 text-center animate-slide-up"><Lock className="mx-auto mb-4 text-[#aa0000]/20" size={64} /><h3 className="text-xl font-bold text-gray-800">Acesso Restrito</h3><p className="text-sm text-gray-400 mt-2">Esta seção é exclusiva para a gestão administrativa.</p></div>;
-      default: return <Dashboard stats={stats} meetings={meetings} members={members} savings={savings} loans={loans} currentUser={currentUser} />;
-    }
-  };
+  if (!session) return <Auth onLogin={() => fetchData()} />;
+
+  if (isChangingPassword) return (
+    <div className="min-h-screen bg-[#f3f4f6] flex flex-col items-center justify-center p-8">
+      <div className="bg-white w-full max-w-sm p-8 rounded-[2.5rem] shadow-2xl text-center">
+        <KeyRound className="mx-auto text-orange-500 mb-4" size={40} />
+        <h2 className="text-xl font-black uppercase tracking-tight">Nova Senha</h2>
+        <p className="text-[10px] text-gray-400 font-bold uppercase mb-6">Define a tua senha de acesso.</p>
+        <form onSubmit={handleChangePassword} className="space-y-4">
+          <input 
+            type="password" 
+            className="w-full px-5 py-4 bg-gray-50 rounded-2xl border-none font-bold"
+            placeholder="Nova Palavra-passe"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            required
+            autoFocus
+          />
+          <button type="submit" className="w-full bg-[#aa0000] text-white py-4 rounded-2xl font-black uppercase shadow-xl">Ativar Agora</button>
+        </form>
+      </div>
+    </div>
+  );
+
+  const isAdmin = currentUser?.role === 'admin';
+  const totalGroupSavings = savings.reduce((acc, s) => acc + Number(s.amount), 0);
+  const activeLoans = loans.filter(l => l.status === 'active').reduce((acc, l) => acc + Number(l.amount), 0);
+  const totalLateFees = savings.reduce((acc, s) => acc + Number(s.lateFee), 0);
+  const totalLoanInterests = loans.reduce((acc, l) => acc + (l.totalRepayment - l.amount), 0);
+  const stats = { totalGroupSavings, activeLoans, totalLateFees, totalLoanInterests };
 
   return (
-    <div className="min-h-screen pb-24 max-w-md mx-auto bg-[#f3f4f6] shadow-xl relative flex flex-col h-full overflow-hidden">
-      <header className="bg-[#aa0000] text-white p-6 pt-10 sticky top-0 z-50 rounded-b-[2.5rem] shadow-lg safe-area-pt">
+    <div className="min-h-screen pb-24 max-w-md mx-auto bg-[#f3f4f6] relative flex flex-col shadow-2xl">
+      <header className="bg-[#aa0000] text-white p-6 pt-10 sticky top-0 z-50 rounded-b-[2.5rem] shadow-lg">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setShowMenu(true)}
-              className="bg-white/20 p-2.5 rounded-xl active:scale-95 transition-transform backdrop-blur-md"
-            >
-              <MenuIcon size={24} />
-            </button>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight">ASCA Seleção</h1>
-              <p className="text-[9px] opacity-80 uppercase tracking-widest font-bold leading-none">
-                Ribeiro, Lda.
-              </p>
-            </div>
+            <button onClick={() => setShowMenu(true)} className="bg-white/20 p-2.5 rounded-xl"><MenuIcon size={24} /></button>
+            <h1 className="text-xl font-bold">ASCA Seleção</h1>
           </div>
-          <button 
-            onClick={() => setShowNotifications(!showNotifications)}
-            className="bg-white/20 p-2.5 rounded-xl active:scale-95 transition-transform backdrop-blur-md relative"
-          >
-            <Bell size={20} />
-            <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-yellow-400 rounded-full border border-[#aa0000]"></span>
-          </button>
+          <div className="bg-white/20 p-2.5 rounded-xl">
+             {isAdmin ? <ShieldCheck size={20} className="text-yellow-400" /> : <User size={20} />}
+          </div>
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto px-4 pt-6 animate-slide-up pb-10">
-        {!currentUser && (
-           <div className="p-8 text-center bg-white rounded-3xl border border-red-100 mb-6">
-              <ShieldCheck className="text-red-400 mx-auto mb-2" />
-              <p className="text-xs font-bold text-red-500 uppercase">Perfil Não Encontrado</p>
-              <p className="text-[10px] text-gray-400 mt-1">Sua conta Auth existe, mas não há um perfil na tabela 'members'. Contate o Admin.</p>
-           </div>
+      <main className="flex-1 overflow-y-auto px-4 pt-6 animate-slide-up">
+        {dbError ? (
+          <div className="p-8 bg-white rounded-3xl text-center border border-red-100 shadow-sm">
+            <Database className="mx-auto text-red-500 mb-4" />
+            <p className="text-xs font-bold uppercase text-red-500">{dbError}</p>
+            <button onClick={() => fetchData()} className="mt-4 text-[10px] font-black uppercase text-[#aa0000] flex items-center justify-center gap-2 mx-auto"><RefreshCw size={12}/> Tentar Sincronizar</button>
+          </div>
+        ) : (
+          <>
+            {activeTab === 'dashboard' && <Dashboard stats={stats} meetings={meetings} members={members} savings={savings} loans={loans} currentUser={currentUser} />}
+            {activeTab === 'members' && <Members members={members} settings={settings} savings={savings} loans={loans} isAdmin={isAdmin} currentUser={currentUser} refreshData={fetchData} externalSelected={globalSelectedMember} setExternalSelected={setGlobalSelectedMember} />}
+            {activeTab === 'savings' && <Savings savings={savings} refreshData={fetchData} members={members} settings={settings} currentUser={currentUser} isAdmin={isAdmin} />}
+            {activeTab === 'loans' && <Loans loans={loans} refreshData={fetchData} members={members} settings={settings} currentUser={currentUser} isAdmin={isAdmin} />}
+            {activeTab === 'reports' && <Reports members={members} savings={savings} loans={loans} stats={stats} settings={settings} currentUser={currentUser} isAdmin={isAdmin} />}
+            {activeTab === 'settings' && (isAdmin ? <Settings settings={settings} refreshData={fetchData} /> : <div className="p-10 text-center opacity-30"><Lock size={48} className="mx-auto" /></div>)}
+          </>
         )}
-        {renderContent()}
       </main>
 
-      {/* MENU SANDWICH OVERLAY */}
-      {showMenu && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] animate-in fade-in duration-300">
-          <div className="absolute top-0 left-0 bottom-0 w-3/4 max-w-xs bg-white shadow-2xl animate-slide-right flex flex-col">
-            <div className="p-8 pt-12 bg-[#aa0000] text-white rounded-br-[3rem] relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12 blur-2xl"></div>
-              <button onClick={() => setShowMenu(false)} className="absolute top-6 right-6 p-2 bg-white/20 rounded-full"><X size={20}/></button>
-              
-              <div className="w-16 h-16 bg-white rounded-2xl mb-4 flex items-center justify-center border-4 border-[#aa0000]/20 shadow-xl overflow-hidden">
-                {currentUser?.avatar ? <img src={currentUser.avatar} className="w-full h-full object-cover" /> : <User size={32} className="text-[#aa0000]" />}
-              </div>
-              <h2 className="text-lg font-bold truncate">{currentUser?.name || 'Membro Visitante'}</h2>
-              <p className="text-xs opacity-70 font-medium truncate">{currentUser?.email || session?.user?.email}</p>
-              <div className="mt-2 inline-block px-3 py-1 bg-white/20 rounded-full text-[9px] font-black uppercase tracking-widest">
-                {isAdmin ? 'Gestor Administrativo' : 'Investidor Ativo'}
-              </div>
-            </div>
-
-            <nav className="flex-1 p-6 space-y-2 mt-4">
-              <MenuLink 
-                icon={<User size={20} />} 
-                label="Meu Perfil" 
-                onClick={() => { 
-                  if (currentUser) {
-                    setGlobalSelectedMember(currentUser);
-                    setActiveTab('members');
-                  }
-                  setShowMenu(false);
-                }} 
-              />
-              <MenuLink 
-                icon={<ShieldCheck size={20} />} 
-                label="Regras do Grupo" 
-                onClick={() => { 
-                  setShowRules(true);
-                  setShowMenu(false);
-                }} 
-              />
-              <div className="h-px bg-gray-100 my-4"></div>
-              <button 
-                onClick={handleLogout}
-                className="w-full flex items-center gap-4 p-4 text-red-600 font-bold hover:bg-red-50 rounded-2xl transition-all"
-              >
-                <LogOut size={20} />
-                <span className="text-sm">Sair do Sistema</span>
-              </button>
-            </nav>
-
-            <div className="p-8 text-center mt-auto">
-              <p className="text-[10px] text-gray-300 font-black uppercase tracking-widest mb-1">ASCA Seleção v1.2</p>
-              <div className="w-10 h-1 bg-[#aa0000]/10 mx-auto rounded-full"></div>
-            </div>
-          </div>
-          <div className="flex-1 h-full cursor-pointer" onClick={() => setShowMenu(false)}></div>
-        </div>
-      )}
-
-      {/* MODAL REGRAS DO GRUPO */}
-      {showRules && (
-        <div className="fixed inset-0 bg-[#1a1a1a]/95 backdrop-blur-md z-[300] p-6 flex items-center justify-center overflow-y-auto">
-          <div className="bg-white w-full max-w-sm rounded-[3rem] p-8 relative shadow-2xl animate-slide-up">
-            <button onClick={() => setShowRules(false)} className="absolute top-6 right-8 p-2 bg-gray-50 text-gray-400 rounded-full hover:bg-gray-100"><X size={20}/></button>
-            
-            <div className="flex items-center gap-3 mb-6">
-              <div className="bg-[#aa0000] p-3 rounded-2xl shadow-lg shadow-[#aa0000]/20">
-                <ShieldCheck className="text-white" size={24} />
-              </div>
-              <h3 className="text-xl font-black text-[#1a1a1a] uppercase tracking-tight">Estatutos ASCA</h3>
-            </div>
-
-            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
-              <RuleItem title="Adesão" desc="Jóia obrigatória de 1.000,00 MT para custos operacionais." />
-              <RuleItem title="Mensalidade" desc="Variável entre 2.000,00 MT e 5.000,00 MT mensais." />
-              <RuleItem title="Pontualidade" desc="Depósitos até o dia 10. Após o dia 10, incide multa de 15%." />
-              <RuleItem title="Elegibilidade" desc="Movimentação mínima de 50.000,00 MT/ano para recebimento de juros." />
-              <RuleItem title="Empréstimos" desc="Taxa fixa de 15% sobre o valor solicitado com prazo de 30 dias." />
-              <RuleItem title="Inadimplência" desc="Atrasos superiores a 30 dias resultam na duplicação imediata dos juros." />
-              <RuleItem title="Retorno Fixo" desc="Bónus garantido de 7.500,00 MT no final do ciclo para elegíveis." />
-            </div>
-
-            <button 
-              onClick={() => setShowRules(false)} 
-              className="w-full bg-[#1a1a1a] text-white py-4 rounded-2xl font-bold mt-8 shadow-xl active:scale-95 transition-transform"
-            >
-              Ciente das Regras
-            </button>
-          </div>
-        </div>
-      )}
-
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 px-4 py-4 flex justify-between items-center z-50 max-w-md mx-auto rounded-t-[2.5rem] shadow-[0_-8px_30px_rgba(0,0,0,0.08)] safe-area-pb">
-        <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={20} />} label="Início" />
-        <NavButton active={activeTab === 'members'} onClick={() => setActiveTab('members')} icon={<Users size={20} />} label="Grupo" />
-        <NavButton active={activeTab === 'savings'} onClick={() => setActiveTab('savings')} icon={<PiggyBank size={20} />} label="Poupado" />
-        <NavButton active={activeTab === 'loans'} onClick={() => setActiveTab('loans')} icon={<CreditCard size={20} />} label="Crédito" />
-        <NavButton active={activeTab === 'reports'} onClick={() => setActiveTab('reports')} icon={<FileText size={20} />} label="Relatórios" />
-        {isAdmin && <NavButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={<SettingsIcon size={20} />} label="Ajustes" />}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 px-4 py-4 flex justify-between items-center z-50 max-w-md mx-auto rounded-t-[2.5rem] shadow-2xl">
+        <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={20} />} label="Home" />
+        <NavButton active={activeTab === 'savings'} onClick={() => setActiveTab('savings')} icon={<PiggyBank size={20} />} label="Poupar" />
+        <NavButton active={activeTab === 'loans'} onClick={() => setActiveTab('loans')} icon={<HandCoins size={20} />} label="Empr." />
+        <NavButton active={activeTab === 'reports'} onClick={() => setActiveTab('reports')} icon={<FileText size={20} />} label="Relat." />
+        {isAdmin && <NavButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={<ShieldCheck size={20} />} label="Admin" />}
       </nav>
+
+      {showMenu && (
+        <div className="fixed inset-0 bg-black/60 z-[200]" onClick={() => setShowMenu(false)}>
+          <div className="absolute top-0 left-0 bottom-0 w-3/4 bg-white shadow-2xl flex flex-col animate-slide-right" onClick={e => e.stopPropagation()}>
+            <div className="p-8 pt-12 bg-[#aa0000] text-white rounded-br-[3rem]">
+              <div className="w-16 h-16 bg-white rounded-2xl mb-4 flex items-center justify-center text-[#aa0000] font-black text-2xl">{currentUser?.name?.charAt(0) || '?'}</div>
+              <h2 className="text-lg font-bold truncate">{currentUser?.name || 'Membro'}</h2>
+              <span className="text-[9px] font-black uppercase opacity-60">{isAdmin ? 'ADMINISTRADOR' : 'INVESTIDOR'}</span>
+            </div>
+            <nav className="flex-1 p-6 space-y-2 mt-4">
+              <button onClick={() => { setActiveTab('dashboard'); setShowMenu(false); }} className="w-full text-left p-4 hover:bg-gray-50 rounded-2xl font-bold flex items-center gap-3"><LayoutDashboard size={20}/> Home</button>
+              <button onClick={() => { setActiveTab('members'); setShowMenu(false); }} className="w-full text-left p-4 hover:bg-gray-50 rounded-2xl font-bold flex items-center gap-3"><Users size={20}/> Membros</button>
+              <button onClick={handleLogout} className="w-full p-4 text-red-600 font-bold flex items-center gap-3 mt-4"><LogOut size={20} /> Sair</button>
+            </nav>
+            <button onClick={() => setShowMenu(false)} className="absolute top-6 right-6 p-2 bg-white/20 rounded-full text-white"><X size={20}/></button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-const MenuLink = ({ icon, label, onClick }: any) => (
-  <button 
-    onClick={onClick}
-    className="w-full flex items-center justify-between p-4 bg-gray-50/50 hover:bg-[#aa0000]/5 rounded-2xl transition-all group active:scale-[0.98]"
-  >
-    <div className="flex items-center gap-4">
-      <div className="text-gray-400 group-hover:text-[#aa0000] transition-colors">{icon}</div>
-      <span className="text-sm font-bold text-gray-700">{label}</span>
-    </div>
-    <ChevronRight size={16} className="text-gray-300 group-hover:text-[#aa0000]" />
-  </button>
-);
-
-const RuleItem = ({ title, desc }: any) => (
-  <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-    <h4 className="text-[10px] font-black uppercase text-[#aa0000] tracking-widest mb-1">{title}</h4>
-    <p className="text-xs text-gray-600 leading-tight font-medium">{desc}</p>
-  </div>
-);
-
-const NavButton: React.FC<{ active: boolean, onClick: () => void, icon: React.ReactNode, label: string }> = ({ active, onClick, icon, label }) => (
-  <button onClick={onClick} className={`flex flex-col items-center gap-1 flex-1 transition-all duration-300 ${active ? 'text-[#aa0000]' : 'text-gray-400'}`}>
+const NavButton = ({ active, onClick, icon, label }: any) => (
+  <button onClick={onClick} className={`flex flex-col items-center gap-1 flex-1 transition-all ${active ? 'text-[#aa0000]' : 'text-gray-400'}`}>
     <div className={`p-2 rounded-xl ${active ? 'bg-[#aa0000]/10' : ''}`}>{icon}</div>
-    <span className={`text-[8px] font-bold uppercase tracking-tighter ${active ? 'opacity-100' : 'opacity-60'}`}>{label}</span>
+    <span className="text-[8px] font-black uppercase tracking-tighter">{label}</span>
   </button>
 );
 

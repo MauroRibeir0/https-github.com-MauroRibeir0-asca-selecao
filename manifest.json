@@ -1,8 +1,8 @@
 
 {
-  "name": "ASCA Seleção - Ribeiro, Lda.",
+  "name": "ASCA Seleção",
   "short_name": "ASCA Seleção",
-  "description": "Sistema de Gestão de Poupança e Crédito Rotativo",
+  "description": "Sistema de Gestão de Poupança e Empréstimos",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f3f4f6",

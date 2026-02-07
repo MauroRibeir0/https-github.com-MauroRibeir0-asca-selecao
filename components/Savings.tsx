@@ -55,14 +55,14 @@ const Savings: React.FC<SavingsProps> = ({ savings, refreshData, members, settin
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-xl font-bold text-gray-800">Poupança Mensal</h2>
-          <p className="text-[10px] text-gray-400 font-bold uppercase">Transações do Ciclo</p>
+          <p className="text-[10px] text-gray-400 font-bold uppercase">Entradas de Dinheiro</p>
         </div>
         <button 
           onClick={() => {
             setFormData({...formData, memberId: currentUser?.id || ''});
             setIsAdding(true);
           }}
-          className="bg-[#aa0000] text-white flex items-center gap-2 px-5 py-3 rounded-[1.25rem] shadow-lg shadow-[#aa0000]/20 active:scale-95 transition-transform"
+          className="bg-[#aa0000] text-white flex items-center gap-2 px-5 py-3 rounded-[1.25rem] shadow-lg active:scale-95 transition-transform"
         >
           <Plus size={20} />
           <span className="text-sm font-bold">Poupar</span>
@@ -75,9 +75,9 @@ const Savings: React.FC<SavingsProps> = ({ savings, refreshData, members, settin
           <AlertTriangle className="text-[#aa0000]" size={24} />
         </div>
         <div>
-          <h4 className="text-white font-bold text-sm">Regras Ribeiro Lda.</h4>
+          <h4 className="text-white font-bold text-sm">Regras do Grupo ASCA</h4>
           <p className="text-[10px] text-gray-400 font-bold uppercase leading-tight mt-1">
-            Lembre-se: O depósito deve ser feito até o dia 10 para evitar a multa de 15%.
+            Deposite até o dia 10 de cada mês para evitar a multa de 15%.
           </p>
         </div>
       </div>
@@ -89,28 +89,24 @@ const Savings: React.FC<SavingsProps> = ({ savings, refreshData, members, settin
             const isMySaving = saving.memberId === currentUser?.id;
             
             return (
-              <div key={saving.id} className={`bg-white p-5 rounded-[2rem] border ${isMySaving ? 'border-[#aa0000]/20 shadow-md' : 'border-gray-100'} flex items-center justify-between shadow-sm transition-all`}>
+              <div key={saving.id} className={`bg-white p-5 rounded-[2rem] border ${isMySaving ? 'border-[#aa0000]/20 shadow-md' : 'border-gray-100'} flex items-center justify-between shadow-sm`}>
                 <div className="flex items-center gap-4">
-                  <div className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center shrink-0 overflow-hidden ${saving.lateFee > 0 ? 'bg-orange-50 border-orange-100' : 'bg-green-50 border-green-100'}`}>
-                    {member?.avatar ? (
-                      <img src={member.avatar} alt={member.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className={`font-bold text-lg ${saving.lateFee > 0 ? 'text-orange-600' : 'text-green-600'}`}>{member?.name.charAt(0)}</span>
-                    )}
+                  <div className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center shrink-0 ${saving.lateFee > 0 ? 'bg-orange-50 border-orange-100 text-orange-600' : 'bg-green-50 border-green-100 text-green-600'} font-black text-lg`}>
+                    {member?.name.charAt(0)}
                   </div>
                   <div>
                     <p className="text-sm font-bold text-gray-800">{member?.name || 'Membro'}</p>
-                    <p className="text-[10px] text-gray-400 flex items-center gap-1 font-bold uppercase tracking-tight">
+                    <p className="text-[10px] text-gray-400 flex items-center gap-1 font-bold uppercase">
                       <Clock size={10} />
-                      {new Date(saving.date).toLocaleDateString('pt-BR')}
+                      {new Date(saving.date).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-bold text-lg text-gray-800 leading-none">{saving.amount.toLocaleString()} MT</p>
+                  <p className="font-bold text-lg text-gray-800">{saving.amount.toLocaleString()} MT</p>
                   {saving.lateFee > 0 && (
-                    <p className="text-[9px] text-red-500 font-bold uppercase tracking-tighter mt-1">
-                      +{saving.lateFee.toLocaleString()} MT Multa
+                    <p className="text-[9px] text-red-500 font-bold uppercase mt-1">
+                      Multa: {saving.lateFee.toLocaleString()} MT
                     </p>
                   )}
                 </div>
@@ -120,31 +116,31 @@ const Savings: React.FC<SavingsProps> = ({ savings, refreshData, members, settin
         ) : (
           <div className="py-16 text-center bg-white rounded-[3rem] border-2 border-dashed border-gray-100">
             <PiggyBank className="mx-auto text-gray-200 mb-4" size={56} />
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Aguardando primeiros depósitos</p>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Ainda sem registros</p>
           </div>
         )}
       </div>
 
       {isAdding && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-end justify-center p-0 md:p-4">
-          <div className="bg-white w-full max-w-sm rounded-t-[40px] md:rounded-[40px] p-8 animate-slide-up shadow-2xl relative">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-end justify-center p-0">
+          <div className="bg-white w-full max-w-sm rounded-t-[40px] p-8 animate-slide-up shadow-2xl relative">
             <button onClick={() => setIsAdding(false)} className="absolute top-6 right-8 text-gray-400 p-2"><X /></button>
-            <h3 className="text-xl font-bold mb-6 text-center text-gray-800">Registrar Depósito</h3>
+            <h3 className="text-xl font-bold mb-6 text-center text-gray-800">Registrar Poupança</h3>
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-2 mb-1 block">Membro Depositante</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase ml-2 mb-1 block">Quem está depositando?</label>
                 {canDepositForOthers ? (
                   <select 
-                    className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#aa0000]/20 font-bold text-gray-700"
+                    className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl font-bold text-gray-700 outline-none"
                     value={formData.memberId}
                     onChange={e => setFormData({...formData, memberId: e.target.value})}
                     required
                   >
-                    <option value="">Selecione...</option>
+                    <option value="">Escolha...</option>
                     {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                   </select>
                 ) : (
-                  <div className="w-full px-5 py-4 bg-gray-100 border-none rounded-2xl font-bold text-gray-400">
+                  <div className="w-full px-5 py-4 bg-gray-100 border-none rounded-2xl font-bold text-gray-500">
                     {currentUser?.name}
                   </div>
                 )}
@@ -155,24 +151,24 @@ const Savings: React.FC<SavingsProps> = ({ savings, refreshData, members, settin
                   type="number" 
                   min={settings.minMensalidade}
                   max={settings.maxMensalidade}
-                  className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#aa0000]/20 font-black text-xl text-[#aa0000]"
+                  className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl font-black text-xl text-[#aa0000] outline-none"
                   value={formData.amount}
                   onChange={e => setFormData({...formData, amount: Number(e.target.value)})}
                   required
                 />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-2 mb-1 block">Data</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase ml-2 mb-1 block">Data de Depósito</label>
                 <input 
                   type="date" 
-                  className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#aa0000]/20 font-bold text-gray-700"
+                  className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl font-bold text-gray-700 outline-none"
                   value={formData.date}
                   onChange={e => setFormData({...formData, date: e.target.value})}
                   required
                 />
               </div>
-              <button type="submit" disabled={loading} className="w-full py-4 bg-[#aa0000] text-white text-sm font-bold rounded-2xl shadow-xl shadow-[#aa0000]/20 active:scale-95 transition-all flex justify-center items-center gap-2">
-                {loading ? <Loader2 className="animate-spin" /> : 'Confirmar Depósito'}
+              <button type="submit" disabled={loading} className="w-full py-4 bg-[#aa0000] text-white font-bold rounded-2xl shadow-xl active:scale-95 transition-all">
+                {loading ? <Loader2 className="animate-spin mx-auto" /> : 'Confirmar Registro'}
               </button>
             </form>
           </div>

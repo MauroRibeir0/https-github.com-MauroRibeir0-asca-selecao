@@ -1,24 +1,16 @@
 
 import React, { useState, useMemo } from 'react';
 import { 
-  CreditCard, 
   Plus, 
   Clock, 
   CheckCircle2, 
-  AlertCircle, 
   Search, 
   X, 
-  TrendingUp, 
-  Calendar,
-  Wallet,
-  ShieldAlert,
+  Landmark, 
   ChevronRight,
-  TriangleAlert,
   Loader2,
-  Lock,
-  UserCheck,
-  Landmark,
-  ShieldX,
+  HandCoins,
+  ShieldAlert,
   History
 } from 'lucide-react';
 import { supabase } from '../lib/supabase.ts';
@@ -61,7 +53,7 @@ const Loans: React.FC<LoansProps> = ({ loans, refreshData, members, settings, cu
     e.preventDefault();
     if (!formData.memberId) return;
     if (formData.amount > memberLimit || formData.amount > globalCashAvailable) {
-      alert("Operação negada: Limite excedido ou falta de liquidez no grupo.");
+      alert("Aviso: Valor pedido é maior que o seu limite ou o grupo não tem dinheiro em caixa agora.");
       return;
     }
 
@@ -119,8 +111,8 @@ const Loans: React.FC<LoansProps> = ({ loans, refreshData, members, settings, cu
     <div className="space-y-6 pb-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-xl font-bold">Gestão de Crédito</h2>
-          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Ciclo Ribeiro Lda.</p>
+          <h2 className="text-xl font-bold">Empréstimos</h2>
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Gestão do Dinheiro do Grupo</p>
         </div>
         <button onClick={() => setIsRequesting(true)} className="bg-[#aa0000] text-white p-3 rounded-2xl shadow-lg active:scale-95 transition-transform">
           <Plus size={24} />
@@ -130,7 +122,7 @@ const Loans: React.FC<LoansProps> = ({ loans, refreshData, members, settings, cu
       <div className="bg-white p-6 rounded-[2rem] border border-gray-100 flex items-center gap-4 shadow-sm relative overflow-hidden">
         <div className="bg-green-50 p-3 rounded-2xl"><Landmark className="text-green-600" size={24} /></div>
         <div>
-          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Caixa para Empréstimos</p>
+          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Dinheiro disponível para emprestar</p>
           <p className="text-2xl font-black text-gray-800 tracking-tight">{globalCashAvailable.toLocaleString()} <span className="text-sm font-bold text-gray-300">MT</span></p>
         </div>
       </div>
@@ -139,7 +131,7 @@ const Loans: React.FC<LoansProps> = ({ loans, refreshData, members, settings, cu
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
         <input 
           type="text" 
-          placeholder="Buscar devedor..."
+          placeholder="Buscar membro..."
           className="w-full pl-12 pr-4 py-4 bg-white border border-gray-100 rounded-2xl focus:outline-none shadow-sm font-medium"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -175,7 +167,7 @@ const Loans: React.FC<LoansProps> = ({ loans, refreshData, members, settings, cu
             <h3 className="text-xl font-bold mb-6 text-center text-gray-800">Novo Empréstimo</h3>
             <form onSubmit={handleRequest} className="space-y-5">
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-2 mb-1 block">Membro</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase ml-2 mb-1 block">Quem está pedindo?</label>
                 {isAdmin ? (
                   <select className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl font-bold" value={formData.memberId} onChange={e => setFormData({...formData, memberId: e.target.value})} required>
                     <option value="">Escolher...</option>
@@ -184,29 +176,29 @@ const Loans: React.FC<LoansProps> = ({ loans, refreshData, members, settings, cu
                 ) : <div className="w-full px-5 py-4 bg-gray-100 rounded-2xl font-bold text-gray-500">{currentUser?.name}</div>}
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-2 mb-1 block">Valor Solicitado (MT)</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase ml-2 mb-1 block">Valor que deseja (MT)</label>
                 <input type="number" step="500" className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl font-black text-2xl text-[#aa0000]" value={formData.amount} onChange={e => setFormData({...formData, amount: Number(e.target.value)})} required />
               </div>
               <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
-                <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1">Seu Limite Estimado</p>
+                <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1">Seu Limite Máximo</p>
                 <p className="text-lg font-black text-blue-800">{memberLimit.toLocaleString()} MT</p>
               </div>
               <button type="submit" disabled={loading} className="w-full py-4 bg-[#aa0000] text-white font-bold rounded-2xl shadow-xl active:scale-95 transition-all">
-                {loading ? <Loader2 className="animate-spin mx-auto" size={20} /> : 'Liberar Crédito'}
+                {loading ? <Loader2 className="animate-spin mx-auto" size={20} /> : 'Conceder Empréstimo'}
               </button>
             </form>
           </div>
         </div>
       )}
 
-      {/* MODAL DETALHES DE DÍVIDA POR MEMBRO */}
+      {/* DETALHES DE DÍVIDA */}
       {selectedMemberLoans && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[210] flex items-end justify-center p-0">
           <div className="bg-[#f3f4f6] w-full max-w-md rounded-t-[3rem] h-[85vh] animate-slide-up flex flex-col">
             <div className="p-8 bg-white border-b relative">
               <button onClick={() => setSelectedMemberLoans(null)} className="absolute top-8 right-8 text-gray-400 p-2"><X /></button>
               <h3 className="text-xl font-bold">{selectedMemberLoans.name}</h3>
-              <p className="text-[10px] text-gray-400 font-bold uppercase">Carteira de Empréstimos</p>
+              <p className="text-[10px] text-gray-400 font-bold uppercase">Meus Empréstimos</p>
             </div>
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               {loans.filter(l => l.memberId === selectedMemberLoans.id).map(loan => {
@@ -217,9 +209,9 @@ const Loans: React.FC<LoansProps> = ({ loans, refreshData, members, settings, cu
                   <div key={loan.id} className={`bg-white p-6 rounded-[2rem] border ${isOverdue ? 'border-red-200 shadow-lg shadow-red-500/5' : 'border-gray-100'} space-y-4`}>
                     <div className="flex justify-between items-start">
                       <div className="flex items-center gap-2">
-                        {isOverdue ? <ShieldX className="text-red-500" size={20} /> : <Clock className="text-orange-400" size={20} />}
+                        {isOverdue ? <ShieldAlert className="text-red-500" size={20} /> : <Clock className="text-orange-400" size={20} />}
                         <span className={`text-[10px] font-black uppercase tracking-widest ${isOverdue ? 'text-red-500' : 'text-gray-400'}`}>
-                          {loan.status === 'paid' ? 'Liquidado' : (isOverdue ? 'Inadimplência (Juros x2)' : 'Em Aberto')}
+                          {loan.status === 'paid' ? 'Pago' : (isOverdue ? 'Atraso (Juros dobrados)' : 'Pendente')}
                         </span>
                       </div>
                       <p className="text-xs font-bold text-gray-400">{new Date(loan.requestedAt).toLocaleDateString()}</p>
@@ -227,27 +219,27 @@ const Loans: React.FC<LoansProps> = ({ loans, refreshData, members, settings, cu
                     
                     <div className="grid grid-cols-2 gap-4 border-y border-gray-50 py-4">
                       <div>
-                        <p className="text-[8px] font-black text-gray-400 uppercase">Capital</p>
+                        <p className="text-[8px] font-black text-gray-400 uppercase">Quanto pegou</p>
                         <p className="font-bold text-gray-800">{loan.amount.toLocaleString()} MT</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-[8px] font-black text-gray-400 uppercase">Vencimento</p>
+                        <p className="text-[8px] font-black text-gray-400 uppercase">Pagar até</p>
                         <p className={`font-bold ${isOverdue ? 'text-red-500' : 'text-gray-800'}`}>{new Date(loan.dueDate).toLocaleDateString()}</p>
                       </div>
                     </div>
 
                     <div className="flex justify-between items-center">
-                      <p className="text-[10px] font-black text-gray-800 uppercase">Total a Reembolsar</p>
+                      <p className="text-[10px] font-black text-gray-800 uppercase">Valor a Pagar</p>
                       <p className={`text-xl font-black ${isOverdue ? 'text-red-600' : 'text-[#aa0000]'}`}>{totalWithPenalty.toLocaleString()} MT</p>
                     </div>
 
                     {isAdmin && loan.status === 'active' && (
                       <div className="grid grid-cols-2 gap-3 pt-2">
                         <button onClick={() => handleAction(loan.id, 'pay')} className="bg-green-600 text-white py-3 rounded-xl text-xs font-bold active:scale-95 transition-transform flex items-center justify-center gap-2">
-                          <CheckCircle2 size={14} /> Liquidar
+                          <CheckCircle2 size={14} /> Pagar Tudo
                         </button>
                         <button onClick={() => handleAction(loan.id, 'renew')} className="bg-white border border-gray-200 text-gray-600 py-3 rounded-xl text-xs font-bold active:scale-95 transition-transform">
-                          Adiar +30 dias
+                          Mais 30 dias
                         </button>
                       </div>
                     )}
@@ -257,7 +249,7 @@ const Loans: React.FC<LoansProps> = ({ loans, refreshData, members, settings, cu
               {loans.filter(l => l.memberId === selectedMemberLoans.id).length === 0 && (
                 <div className="py-20 text-center opacity-30">
                   <History size={48} className="mx-auto mb-2" />
-                  <p className="font-bold uppercase tracking-widest text-xs">Sem histórico de crédito</p>
+                  <p className="font-bold uppercase tracking-widest text-xs">Sem dívidas registradas</p>
                 </div>
               )}
             </div>

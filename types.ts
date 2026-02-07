@@ -1,7 +1,7 @@
 
 export interface Member {
   id: string;
-  userId?: string; // UUID do Supabase Auth
+  userId?: string; 
   role: 'admin' | 'member';
   name: string;
   email: string;
@@ -10,9 +10,10 @@ export interface Member {
   avatar?: string;
   joinedAt: string;
   joiaPaid: boolean;
+  mustChangePassword: boolean; // Flag para primeiro acesso
   totalSavings: number;
   totalLoansTaken: number;
-  eligibilityProgress: number; // 0 to 1 based on 50,000 MT target
+  eligibilityProgress: number; 
 }
 
 export interface Saving {
@@ -21,17 +22,17 @@ export interface Saving {
   amount: number;
   date: string;
   lateFee: number;
-  month: string; // "YYYY-MM"
+  month: string; 
 }
 
 export interface Loan {
   id: string;
   memberId: string;
   amount: number;
-  interestRate: number; // usually 0.15
-  requestedAt: string;
-  dueDate: string;
-  paidAt?: string;
+  interest_rate: number; 
+  requested_at: string;
+  due_date: string;
+  paid_at?: string;
   status: 'active' | 'paid' | 'overdue';
   totalRepayment: number;
 }

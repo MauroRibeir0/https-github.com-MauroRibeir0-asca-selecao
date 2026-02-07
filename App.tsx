@@ -15,9 +15,8 @@ import {
   User,
   ShieldCheck,
   LogOut,
-  Info,
   ChevronRight,
-  Gavel
+  ShieldEllipsis
 } from 'lucide-react';
 import { supabase } from './lib/supabase.ts';
 import Dashboard from './components/Dashboard.tsx';
@@ -39,6 +38,7 @@ const App: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showRules, setShowRules] = useState(false);
+  const [globalSelectedMember, setGlobalSelectedMember] = useState<Member | null>(null);
   
   const [members, setMembers] = useState<Member[]>([]);
   const [savings, setSavings] = useState<Saving[]>([]);
@@ -179,7 +179,7 @@ const App: React.FC = () => {
   const renderContent = () => {
     switch(activeTab) {
       case 'dashboard': return <Dashboard stats={stats} meetings={meetings} members={members} savings={savings} loans={loans} currentUser={currentUser} />;
-      case 'members': return <Members members={members} settings={settings} savings={savings} loans={loans} isAdmin={isAdmin} currentUser={currentUser} refreshData={fetchData} />;
+      case 'members': return <Members members={members} settings={settings} savings={savings} loans={loans} isAdmin={isAdmin} currentUser={currentUser} refreshData={fetchData} externalSelected={globalSelectedMember} setExternalSelected={setGlobalSelectedMember} />;
       case 'savings': return <Savings savings={savings} refreshData={fetchData} members={members} settings={settings} currentUser={currentUser} isAdmin={isAdmin} />;
       case 'loans': return <Loans loans={loans} refreshData={fetchData} members={members} settings={settings} currentUser={currentUser} isAdmin={isAdmin} />;
       case 'reports': return <Reports members={members} savings={savings} loans={loans} stats={stats} settings={settings} currentUser={currentUser} isAdmin={isAdmin} />;
@@ -232,8 +232,8 @@ const App: React.FC = () => {
               <div className="w-16 h-16 bg-white rounded-2xl mb-4 flex items-center justify-center border-4 border-[#aa0000]/20 shadow-xl overflow-hidden">
                 {currentUser?.avatar ? <img src={currentUser.avatar} className="w-full h-full object-cover" /> : <User size={32} className="text-[#aa0000]" />}
               </div>
-              <h2 className="text-lg font-bold">{currentUser?.name || 'Membro'}</h2>
-              <p className="text-xs opacity-70 font-medium">{currentUser?.email}</p>
+              <h2 className="text-lg font-bold truncate">{currentUser?.name || 'Membro'}</h2>
+              <p className="text-xs opacity-70 font-medium truncate">{currentUser?.email}</p>
               <div className="mt-2 inline-block px-3 py-1 bg-white/20 rounded-full text-[9px] font-black uppercase tracking-widest">
                 {isAdmin ? 'Gestor Administrativo' : 'Investidor Ativo'}
               </div>
@@ -244,8 +244,7 @@ const App: React.FC = () => {
                 icon={<User size={20} />} 
                 label="Meu Perfil" 
                 onClick={() => { 
-                  // Abre o detalhe do membro (isso poderia ser refinado para abrir direto o modal de perfil)
-                  setActiveTab('members');
+                  if (currentUser) setGlobalSelectedMember(currentUser);
                   setShowMenu(false);
                 }} 
               />
@@ -267,7 +266,7 @@ const App: React.FC = () => {
               </button>
             </nav>
 
-            <div className="p-8 text-center">
+            <div className="p-8 text-center mt-auto">
               <p className="text-[10px] text-gray-300 font-black uppercase tracking-widest mb-1">ASCA Seleção v1.2</p>
               <div className="w-10 h-1 bg-[#aa0000]/10 mx-auto rounded-full"></div>
             </div>

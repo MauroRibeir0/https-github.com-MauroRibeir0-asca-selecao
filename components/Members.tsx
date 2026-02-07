@@ -1,6 +1,6 @@
 
-import React, { useState, useMemo } from 'react';
-import { UserPlus, Search, Trophy, MapPin, Phone, Mail, Camera, X, Plus, Wallet, History, ReceiptText, ShieldCheck, Clock, CheckCircle2, Loader2, AlertCircle, ShieldEllipsis, UserCheck } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { UserPlus, Search, Trophy, MapPin, Phone, Mail, Camera, X, Plus, Wallet, History, ReceiptText, ShieldCheck, Clock, CheckCircle2, Loader2, AlertCircle, ShieldEllipsis, UserCheck, ChevronRight, Lock } from 'lucide-react';
 import { supabase } from '../lib/supabase.ts';
 import { Member, Saving, Loan, SystemSettings } from '../types.ts';
 import AIAssistant from './AIAssistant.tsx';
@@ -13,11 +13,12 @@ interface MembersProps {
   isAdmin: boolean;
   currentUser: Member | null;
   refreshData: () => void;
+  externalSelected: Member | null;
+  setExternalSelected: (m: Member | null) => void;
 }
 
-const Members: React.FC<MembersProps> = ({ members, settings, savings, loans, isAdmin, currentUser, refreshData }) => {
+const Members: React.FC<MembersProps> = ({ members, settings, savings, loans, isAdmin, currentUser, refreshData, externalSelected, setExternalSelected }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -36,7 +37,6 @@ const Members: React.FC<MembersProps> = ({ members, settings, savings, loans, is
       email: formData.get('email'),
       phone: formData.get('phone'),
       address: formData.get('address'),
-      avatar: formData.get('avatar'),
       role: formData.get('role') || 'member',
       joia_paid: false,
       total_savings: 0,
@@ -60,8 +60,8 @@ const Members: React.FC<MembersProps> = ({ members, settings, savings, loans, is
       alert("Erro ao atualizar Jóia: " + error.message);
     } else {
       refreshData();
-      if (selectedMember && selectedMember.id === memberId) {
-        setSelectedMember({...selectedMember, joiaPaid: !current});
+      if (externalSelected && externalSelected.id === memberId) {
+        setExternalSelected({...externalSelected, joiaPaid: !current});
       }
     }
   };
@@ -74,7 +74,7 @@ const Members: React.FC<MembersProps> = ({ members, settings, savings, loans, is
           <p className="text-[10px] text-gray-400 font-bold uppercase">Membros do Grupo</p>
         </div>
         {isAdmin && (
-          <button onClick={() => setIsAddingMember(true)} className="bg-[#aa0000] text-white p-3 rounded-2xl active:scale-95 transition-transform shadow-lg shadow-[#aa0000]/20">
+          <button onClick={() => setIsAddingMember(true)} className="bg-[#aa0000] text-white p-3 rounded-2xl active:scale-95 transition-transform shadow-lg">
             <UserPlus size={20} />
           </button>
         )}
@@ -85,7 +85,7 @@ const Members: React.FC<MembersProps> = ({ members, settings, savings, loans, is
         <input 
           type="text" 
           placeholder="Pesquisar companheiros..."
-          className="w-full pl-12 pr-4 py-4 bg-white border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#aa0000]/20 shadow-sm font-medium"
+          className="w-full pl-12 pr-4 py-4 bg-white border border-gray-100 rounded-2xl focus:outline-none shadow-sm font-medium"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
@@ -95,7 +95,7 @@ const Members: React.FC<MembersProps> = ({ members, settings, savings, loans, is
         {filteredMembers.map(member => {
           const isMe = member.id === currentUser?.id;
           return (
-            <div key={member.id} onClick={() => setSelectedMember(member)} className={`bg-white p-5 rounded-[2rem] border ${isMe ? 'border-[#aa0000]/40 bg-[#aa0000]/5' : 'border-gray-100'} shadow-sm flex items-center gap-4 cursor-pointer hover:border-[#aa0000]/30 transition-all active:scale-[0.98]`}>
+            <div key={member.id} onClick={() => setExternalSelected(member)} className={`bg-white p-5 rounded-[2rem] border ${isMe ? 'border-[#aa0000]/40 bg-[#aa0000]/5' : 'border-gray-100'} shadow-sm flex items-center gap-4 cursor-pointer hover:border-[#aa0000]/30 transition-all active:scale-[0.98]`}>
               <div className="w-14 h-14 bg-[#1a1a1a] text-white rounded-2xl flex items-center justify-center font-bold overflow-hidden shrink-0 border-2 border-white shadow-md">
                 {member.avatar ? (
                   <img src={member.avatar} alt={member.name} className="w-full h-full object-cover" />
@@ -106,7 +106,7 @@ const Members: React.FC<MembersProps> = ({ members, settings, savings, loans, is
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <h4 className="font-bold text-gray-800 truncate">{member.name}</h4>
-                  {member.role === 'admin' && <UserCheck size={12} className="text-[#aa0000]" />}
+                  {member.role === 'admin' && <ShieldEllipsis size={12} className="text-[#aa0000]" />}
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full ${member.joiaPaid ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
@@ -125,55 +125,50 @@ const Members: React.FC<MembersProps> = ({ members, settings, savings, loans, is
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-end justify-center p-0 md:p-4">
           <div className="bg-white w-full max-w-md rounded-t-[40px] md:rounded-[40px] p-8 animate-slide-up shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <button onClick={() => setIsAddingMember(false)} className="absolute top-6 right-8 text-gray-400 p-2"><X /></button>
-            <h3 className="text-xl font-bold mb-6 text-center text-gray-800">Novo Cadastro ASCA</h3>
+            <h3 className="text-xl font-bold mb-6 text-center text-gray-800 underline underline-offset-8 decoration-[#aa0000] decoration-4">Novo Cadastro ASCA</h3>
             <form onSubmit={handleCreateMember} className="space-y-5">
               <Input label="Nome Completo" name="name" placeholder="Ex: João Ribeiro" required />
               <Input label="Email de Acesso" name="email" type="email" placeholder="membro@exemplo.com" required />
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-2 block">Nível de Acesso</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase ml-2 block">Nível de Acesso (Papel)</label>
                 <select name="role" className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#aa0000]/20 font-bold text-gray-700">
-                  <option value="member">Membro Comum</option>
-                  <option value="admin">Administrador do Grupo</option>
+                  <option value="member">Investidor (Membro)</option>
+                  <option value="admin">Administrador (Gestor)</option>
                 </select>
               </div>
               <Input label="Telefone" name="phone" placeholder="+258..." />
-              <button disabled={loading} type="submit" className="w-full bg-[#aa0000] text-white py-4 rounded-2xl font-bold shadow-xl shadow-[#aa0000]/20 active:scale-95 transition-all flex justify-center items-center gap-2">
-                {loading ? <Loader2 className="animate-spin" /> : 'Registrar Membro'}
+              <button disabled={loading} type="submit" className="w-full bg-[#aa0000] text-white py-4 rounded-2xl font-bold shadow-xl active:scale-95 transition-all flex justify-center items-center gap-2">
+                {loading ? <Loader2 className="animate-spin" /> : 'Registrar e Configurar Perfil'}
               </button>
             </form>
           </div>
         </div>
       )}
 
-      {selectedMember && (
+      {externalSelected && (
         <MemberDetail 
-          member={selectedMember} 
-          isMe={selectedMember.id === currentUser?.id}
+          member={externalSelected} 
+          isMe={externalSelected.id === currentUser?.id}
           isAdmin={isAdmin}
-          onClose={() => setSelectedMember(null)} 
-          savings={savings.filter(s => s.memberId === selectedMember.id)}
-          loans={loans.filter(l => l.memberId === selectedMember.id)}
+          onClose={() => setExternalSelected(null)} 
+          savings={savings.filter(s => s.memberId === externalSelected.id)}
+          loans={loans.filter(l => l.memberId === externalSelected.id)}
           settings={settings}
-          onToggleJoia={() => toggleJoia(selectedMember.id, selectedMember.joiaPaid)}
+          onToggleJoia={() => toggleJoia(externalSelected.id, externalSelected.joiaPaid)}
         />
       )}
     </div>
   );
 };
 
-const ChevronRight = ({ className, size }: any) => (
-  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-);
-
 const Input = ({ label, ...props }: any) => (
   <div className="space-y-1">
     <label className="text-[10px] font-bold text-gray-400 uppercase ml-2 block">{label}</label>
-    <input className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#aa0000]/20 font-medium text-gray-800 transition-all placeholder:text-gray-300" {...props} />
+    <input className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#aa0000]/20 font-medium text-gray-800" {...props} />
   </div>
 );
 
 const MemberDetail = ({ member, isMe, isAdmin, onClose, savings, loans, settings, onToggleJoia }: any) => {
-  // Transparência: Membros podem ver o extrato, mas apenas Administradores ou o PRÓPRIO membro podem ver análises da IA e detalhes financeiros sensíveis.
   const canSeePrivate = isMe || isAdmin;
 
   return (
@@ -191,7 +186,7 @@ const MemberDetail = ({ member, isMe, isAdmin, onClose, savings, loans, settings
                 <button 
                   onClick={onToggleJoia} 
                   disabled={!isAdmin}
-                  className={`text-[10px] font-bold uppercase px-4 py-1.5 rounded-full border active:scale-95 transition-all flex items-center gap-2 ${member.joiaPaid ? 'bg-green-50 text-green-600 border-green-200' : 'bg-red-50 text-red-600 border-red-200'}`}
+                  className={`text-[10px] font-bold uppercase px-4 py-1.5 rounded-full border transition-all flex items-center gap-2 ${member.joiaPaid ? 'bg-green-50 text-green-600 border-green-200' : 'bg-red-50 text-red-600 border-red-200'}`}
                 >
                   {member.joiaPaid ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
                   Jóia: {member.joiaPaid ? 'Paga' : (isAdmin ? 'Liquidar Agora' : 'Pendente')}
@@ -249,7 +244,7 @@ const MemberDetail = ({ member, isMe, isAdmin, onClose, savings, loans, settings
         </div>
         
         <div className="bg-white p-8 border-t border-gray-100 safe-area-pb">
-          <button onClick={onClose} className="w-full bg-[#1a1a1a] text-white py-4 rounded-2xl font-bold shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-2">
+          <button onClick={onClose} className="w-full bg-[#1a1a1a] text-white py-4 rounded-2xl font-bold shadow-lg active:scale-95 transition-transform">
             Fechar Perfil
           </button>
         </div>

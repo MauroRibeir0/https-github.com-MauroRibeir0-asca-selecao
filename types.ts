@@ -1,6 +1,8 @@
 
 export interface Member {
   id: string;
+  userId?: string; // UUID do Supabase Auth
+  role: 'admin' | 'member';
   name: string;
   email: string;
   phone?: string;

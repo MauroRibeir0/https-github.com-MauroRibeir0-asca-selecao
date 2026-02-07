@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { UserPlus, Search, Trophy, MapPin, Phone, Mail, Camera, X, Plus, Wallet, History, ReceiptText, ShieldCheck, Clock, CheckCircle2, Loader2, AlertCircle, ShieldEllipsis, UserCheck, ChevronRight, Lock } from 'lucide-react';
+// Added User to the imported icons from lucide-react
+import { UserPlus, Search, Trophy, MapPin, Phone, Mail, Camera, X, Plus, Wallet, History, ReceiptText, ShieldCheck, Clock, CheckCircle2, Loader2, AlertCircle, ShieldEllipsis, UserCheck, ChevronRight, Lock, User } from 'lucide-react';
 import { supabase } from '../lib/supabase.ts';
 import { Member, Saving, Loan, SystemSettings } from '../types.ts';
 import AIAssistant from './AIAssistant.tsx';
@@ -32,9 +33,10 @@ const Members: React.FC<MembersProps> = ({ members, settings, savings, loans, is
     setLoading(true);
     const formData = new FormData(e.currentTarget);
     
+    // Explicitamente inserindo a coluna 'role' com valor do select
     const { error } = await supabase.from('members').insert({
       name: formData.get('name'),
-      email: formData.get('email'),
+      email: formData.get('email')?.toString().toLowerCase(),
       phone: formData.get('phone'),
       address: formData.get('address'),
       role: formData.get('role') || 'member',
@@ -94,9 +96,10 @@ const Members: React.FC<MembersProps> = ({ members, settings, savings, loans, is
       <div className="grid grid-cols-1 gap-4">
         {filteredMembers.map(member => {
           const isMe = member.id === currentUser?.id;
+          const isMemberAdmin = member.role === 'admin';
           return (
             <div key={member.id} onClick={() => setExternalSelected(member)} className={`bg-white p-5 rounded-[2rem] border ${isMe ? 'border-[#aa0000]/40 bg-[#aa0000]/5' : 'border-gray-100'} shadow-sm flex items-center gap-4 cursor-pointer hover:border-[#aa0000]/30 transition-all active:scale-[0.98]`}>
-              <div className="w-14 h-14 bg-[#1a1a1a] text-white rounded-2xl flex items-center justify-center font-bold overflow-hidden shrink-0 border-2 border-white shadow-md">
+              <div className={`w-14 h-14 ${isMemberAdmin ? 'bg-[#aa0000]' : 'bg-[#1a1a1a]'} text-white rounded-2xl flex items-center justify-center font-bold overflow-hidden shrink-0 border-2 border-white shadow-md`}>
                 {member.avatar ? (
                   <img src={member.avatar} alt={member.name} className="w-full h-full object-cover" />
                 ) : (
@@ -106,13 +109,16 @@ const Members: React.FC<MembersProps> = ({ members, settings, savings, loans, is
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <h4 className="font-bold text-gray-800 truncate">{member.name}</h4>
-                  {member.role === 'admin' && <ShieldEllipsis size={12} className="text-[#aa0000]" />}
+                  {isMemberAdmin && <ShieldEllipsis size={12} className="text-[#aa0000]" />}
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full ${member.joiaPaid ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${member.joiaPaid ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
                     Jóia: {member.joiaPaid ? 'PAGA' : 'PENDENTE'}
                   </span>
-                  {isMe && <span className="text-[9px] font-bold text-[#aa0000] uppercase bg-white px-2 py-0.5 rounded-full border border-[#aa0000]/20">TU</span>}
+                  <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${isMemberAdmin ? 'bg-[#aa0000]/10 text-[#aa0000]' : 'bg-gray-100 text-gray-500'}`}>
+                    {isMemberAdmin ? 'ADM' : 'MBR'}
+                  </span>
+                  {isMe && <span className="text-[8px] font-black text-[#aa0000] uppercase bg-white px-2 py-0.5 rounded-full border border-[#aa0000]/20">TU</span>}
                 </div>
               </div>
               <ChevronRight className="text-gray-300" size={20} />
@@ -170,14 +176,15 @@ const Input = ({ label, ...props }: any) => (
 
 const MemberDetail = ({ member, isMe, isAdmin, onClose, savings, loans, settings, onToggleJoia }: any) => {
   const canSeePrivate = isMe || isAdmin;
+  const isMemberAdmin = member.role === 'admin';
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[200] flex items-end justify-center p-0">
-      <div className="bg-[#f3f4f6] w-full max-w-md rounded-t-[40px] animate-slide-up h-[92vh] overflow-hidden flex flex-col shadow-2xl">
+      <div className="bg-[#f3f4f6] w-full max-w-md rounded-t-[40px] animate-slide-up h-[92vh] overflow-hidden flex flex-col shadow-2xl border-t border-white/20">
         <div className="bg-white p-8 border-b relative shrink-0">
           <button onClick={onClose} className="absolute top-8 right-8 text-gray-400 p-2 bg-gray-50 rounded-full"><X size={20} /></button>
           <div className="flex items-center gap-4">
-            <div className="w-20 h-20 bg-[#aa0000] text-white rounded-[1.5rem] flex items-center justify-center font-bold text-3xl overflow-hidden border-4 border-white shadow-xl">
+            <div className={`w-20 h-20 ${isMemberAdmin ? 'bg-[#aa0000]' : 'bg-[#1a1a1a]'} text-white rounded-[1.5rem] flex items-center justify-center font-bold text-3xl overflow-hidden border-4 border-white shadow-xl`}>
               {member.avatar ? <img src={member.avatar} alt={member.name} className="w-full h-full object-cover" /> : member.name.charAt(0)}
             </div>
             <div className="flex-1 min-w-0">
@@ -191,7 +198,10 @@ const MemberDetail = ({ member, isMe, isAdmin, onClose, savings, loans, settings
                   {member.joiaPaid ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
                   Jóia: {member.joiaPaid ? 'Paga' : (isAdmin ? 'Liquidar Agora' : 'Pendente')}
                 </button>
-                {member.role === 'admin' && <span className="bg-gray-100 text-gray-600 text-[10px] font-bold px-3 py-1.5 rounded-full border border-gray-200 uppercase flex items-center gap-1"><ShieldEllipsis size={12} /> Gestor</span>}
+                <span className={`text-[10px] font-bold px-3 py-1.5 rounded-full border uppercase flex items-center gap-1 ${isMemberAdmin ? 'bg-[#aa0000]/5 text-[#aa0000] border-[#aa0000]/20' : 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                  {isMemberAdmin ? <ShieldEllipsis size={12} /> : <User size={12} />}
+                  {isMemberAdmin ? 'Gestor' : 'Investidor'}
+                </span>
               </div>
             </div>
           </div>

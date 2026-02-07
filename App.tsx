@@ -52,6 +52,9 @@ const App: React.FC = () => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (!_event.includes('SIGNED_IN')) {
+        setCurrentUser(null);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -120,7 +123,8 @@ const App: React.FC = () => {
         return {
           id: m.id,
           userId: m.user_id,
-          role: m.role || 'member',
+          // Normalização para garantir que 'Admin' ou 'ADMIN' no DB vire 'admin'
+          role: (m.role || 'member').toLowerCase() as 'admin' | 'member',
           name: m.name,
           email: m.email,
           phone: m.phone,
@@ -136,7 +140,7 @@ const App: React.FC = () => {
 
       setMembers(allMembers);
 
-      const userProfile = allMembers.find(m => m.email === session.user.email) || null;
+      const userProfile = allMembers.find(m => m.email.toLowerCase() === session.user.email.toLowerCase()) || null;
       setCurrentUser(userProfile);
 
       setMeetings([
@@ -172,7 +176,7 @@ const App: React.FC = () => {
   if (loading) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-white gap-4">
       <Loader2 className="animate-spin text-[#aa0000]" size={48} />
-      <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Sincronizando Dados...</p>
+      <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Sincronizando Sessão Ribeiro...</p>
     </div>
   );
 
@@ -184,7 +188,7 @@ const App: React.FC = () => {
       case 'loans': return <Loans loans={loans} refreshData={fetchData} members={members} settings={settings} currentUser={currentUser} isAdmin={isAdmin} />;
       case 'reports': return <Reports members={members} savings={savings} loans={loans} stats={stats} settings={settings} currentUser={currentUser} isAdmin={isAdmin} />;
       case 'settings': 
-        return isAdmin ? <Settings settings={settings} refreshData={fetchData} /> : <div className="p-10 text-center"><Lock className="mx-auto mb-4 text-gray-300" size={48} /><p className="font-bold text-gray-500">Acesso Restrito</p></div>;
+        return isAdmin ? <Settings settings={settings} refreshData={fetchData} /> : <div className="p-10 text-center animate-slide-up"><Lock className="mx-auto mb-4 text-[#aa0000]/20" size={64} /><h3 className="text-xl font-bold text-gray-800">Acesso Restrito</h3><p className="text-sm text-gray-400 mt-2">Esta seção é exclusiva para a gestão administrativa.</p></div>;
       default: return <Dashboard stats={stats} meetings={meetings} members={members} savings={savings} loans={loans} currentUser={currentUser} />;
     }
   };
@@ -218,6 +222,13 @@ const App: React.FC = () => {
       </header>
 
       <main className="flex-1 overflow-y-auto px-4 pt-6 animate-slide-up pb-10">
+        {!currentUser && (
+           <div className="p-8 text-center bg-white rounded-3xl border border-red-100 mb-6">
+              <ShieldCheck className="text-red-400 mx-auto mb-2" />
+              <p className="text-xs font-bold text-red-500 uppercase">Perfil Não Encontrado</p>
+              <p className="text-[10px] text-gray-400 mt-1">Sua conta Auth existe, mas não há um perfil na tabela 'members'. Contate o Admin.</p>
+           </div>
+        )}
         {renderContent()}
       </main>
 
@@ -232,8 +243,8 @@ const App: React.FC = () => {
               <div className="w-16 h-16 bg-white rounded-2xl mb-4 flex items-center justify-center border-4 border-[#aa0000]/20 shadow-xl overflow-hidden">
                 {currentUser?.avatar ? <img src={currentUser.avatar} className="w-full h-full object-cover" /> : <User size={32} className="text-[#aa0000]" />}
               </div>
-              <h2 className="text-lg font-bold truncate">{currentUser?.name || 'Membro'}</h2>
-              <p className="text-xs opacity-70 font-medium truncate">{currentUser?.email}</p>
+              <h2 className="text-lg font-bold truncate">{currentUser?.name || 'Membro Visitante'}</h2>
+              <p className="text-xs opacity-70 font-medium truncate">{currentUser?.email || session?.user?.email}</p>
               <div className="mt-2 inline-block px-3 py-1 bg-white/20 rounded-full text-[9px] font-black uppercase tracking-widest">
                 {isAdmin ? 'Gestor Administrativo' : 'Investidor Ativo'}
               </div>
@@ -244,7 +255,10 @@ const App: React.FC = () => {
                 icon={<User size={20} />} 
                 label="Meu Perfil" 
                 onClick={() => { 
-                  if (currentUser) setGlobalSelectedMember(currentUser);
+                  if (currentUser) {
+                    setGlobalSelectedMember(currentUser);
+                    setActiveTab('members');
+                  }
                   setShowMenu(false);
                 }} 
               />
@@ -316,20 +330,6 @@ const App: React.FC = () => {
         <NavButton active={activeTab === 'reports'} onClick={() => setActiveTab('reports')} icon={<FileText size={20} />} label="Relatórios" />
         {isAdmin && <NavButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={<SettingsIcon size={20} />} label="Ajustes" />}
       </nav>
-
-      {/* MODAL DE NOTIFICAÇÕES */}
-      {showNotifications && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-start justify-center pt-24 px-6" onClick={() => setShowNotifications(false)}>
-          <div className="bg-white w-full rounded-3xl p-6 shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
-            <h3 className="text-sm font-black uppercase tracking-widest text-[#aa0000] mb-4">Alertas do Ciclo</h3>
-            <div className="space-y-3">
-              <NotificationItem title="Depósito Próximo" desc="Lembre-se: depósitos após o dia 10 geram multa de 15%." date="10 Jan" />
-              <NotificationItem title="Elegibilidade" desc="Você já atingiu 40% da meta de movimentação anual." date="Hoje" />
-              <NotificationItem title="Reembolso" desc="O empréstimo de João Ribeiro vence em 2 dias." date="08 Jan" />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
@@ -359,19 +359,6 @@ const NavButton: React.FC<{ active: boolean, onClick: () => void, icon: React.Re
     <div className={`p-2 rounded-xl ${active ? 'bg-[#aa0000]/10' : ''}`}>{icon}</div>
     <span className={`text-[8px] font-bold uppercase tracking-tighter ${active ? 'opacity-100' : 'opacity-60'}`}>{label}</span>
   </button>
-);
-
-const NotificationItem = ({ title, desc, date }: any) => (
-  <div className="flex gap-4 p-3 hover:bg-gray-50 rounded-2xl transition-all border-b border-gray-50 last:border-0">
-    <div className="w-2 h-2 bg-[#aa0000] rounded-full mt-1.5 shrink-0"></div>
-    <div className="flex-1">
-      <div className="flex justify-between items-center mb-0.5">
-        <h4 className="text-[10px] font-black uppercase text-gray-800">{title}</h4>
-        <span className="text-[8px] font-bold text-gray-400 uppercase">{date}</span>
-      </div>
-      <p className="text-[11px] text-gray-500 leading-tight">{desc}</p>
-    </div>
-  </div>
 );
 
 export default App;

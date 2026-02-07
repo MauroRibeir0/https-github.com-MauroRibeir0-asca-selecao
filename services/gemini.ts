@@ -1,6 +1,5 @@
-
 import { GoogleGenAI } from "@google/genai";
-import { Member, Saving, Loan } from "../types";
+import { Member, Saving, Loan } from "../types.ts";
 
 export const analyzeMemberPerformance = async (
   member: Member,
@@ -8,7 +7,13 @@ export const analyzeMemberPerformance = async (
   loans: Loan[],
   settings: any
 ) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Verificação de segurança para a API Key
+  const apiKey = typeof process !== 'undefined' ? process.env.API_KEY : undefined;
+  if (!apiKey) {
+    return "Configuração de IA indisponível (API_KEY ausente).";
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
   
   const prompt = `
     Analise o desempenho financeiro deste membro do grupo de poupança ASCA Seleção:

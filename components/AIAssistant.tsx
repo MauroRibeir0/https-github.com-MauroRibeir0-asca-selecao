@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
 import { Sparkles, BrainCircuit, Loader2 } from 'lucide-react';
-import { Member, Saving, Loan, SystemSettings } from '../types';
-import { analyzeMemberPerformance } from '../services/gemini';
+import { Member, Saving, Loan, SystemSettings } from '../types.ts';
+import { analyzeMemberPerformance } from '../services/gemini.ts';
 
 interface AIAssistantProps {
   member: Member;

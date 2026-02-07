@@ -59,12 +59,61 @@ const App: React.FC = () => {
         supabase.from('settings').select('*').single()
       ]);
 
-      if (mems.data) setMembers(mems.data as any);
-      if (savs.data) setSavings(savs.data as any);
-      if (lns.data) setLoans(lns.data as any);
-      if (sets.data) setSettings(sets.data as any);
+      if (mems.data) {
+        setMembers(mems.data.map((m: any) => ({
+          id: m.id,
+          name: m.name,
+          email: m.email,
+          phone: m.phone,
+          address: m.address,
+          avatar: m.avatar,
+          joinedAt: m.created_at,
+          joiaPaid: m.joia_paid,
+          totalSavings: m.total_savings || 0,
+          totalLoansTaken: m.total_loans_taken || 0,
+          eligibilityProgress: m.eligibility_progress || 0
+        })));
+      }
+
+      if (savs.data) {
+        setSavings(savs.data.map((s: any) => ({
+          id: s.id,
+          memberId: s.member_id,
+          amount: s.amount,
+          date: s.date,
+          lateFee: s.late_fee || 0,
+          month: s.month
+        })));
+      }
+
+      if (lns.data) {
+        setLoans(lns.data.map((l: any) => ({
+          id: l.id,
+          memberId: l.member_id,
+          amount: l.amount,
+          interestRate: l.interest_rate,
+          requestedAt: l.requested_at,
+          dueDate: l.due_date,
+          paidAt: l.paid_at,
+          status: l.status,
+          totalRepayment: l.total_repayment
+        })));
+      }
+
+      if (sets.data) {
+        setSettings({
+          joiaAmount: sets.data.joia_amount,
+          minMensalidade: sets.data.min_mensalidade,
+          maxMensalidade: sets.data.max_mensalidade,
+          lateFeeRate: sets.data.late_fee_rate,
+          minMovementForInterest: sets.data.min_movement_for_interest,
+          fixedInterestReturn: sets.data.fixed_interest_return,
+          managementFeePerMember: sets.data.management_fee_per_member,
+          loanInterestRate: sets.data.loan_interest_rate
+        });
+      }
     } catch (error) {
-      console.error("Erro ao buscar dados:", error);
+      console.error("Erro ao sincronizar dados:", error);
     } finally {
       setLoading(false);
     }
@@ -100,7 +149,6 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-24 max-w-md mx-auto bg-white shadow-xl relative flex flex-col h-full overflow-hidden">
-      {/* Header com Safe Area Top */}
       <header className="bg-[#aa0000] text-white p-6 pt-10 sticky top-0 z-50 rounded-b-[2.5rem] shadow-lg safe-area-pt">
         <div className="flex justify-between items-center">
           <div>
@@ -113,12 +161,10 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Main content area */}
       <main className="flex-1 overflow-y-auto px-4 pt-6 animate-slide-up pb-10">
         {renderContent()}
       </main>
 
-      {/* Bottom Nav com Safe Area Bottom */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 px-6 py-4 flex justify-between items-center z-50 max-w-md mx-auto rounded-t-[2.5rem] shadow-[0_-8px_30px_rgba(0,0,0,0.08)] safe-area-pb">
         <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={24} />} label="Home" />
         <NavButton active={activeTab === 'members'} onClick={() => setActiveTab('members')} icon={<Users size={24} />} label="Membros" />

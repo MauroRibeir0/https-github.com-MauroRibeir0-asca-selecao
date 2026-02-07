@@ -1,5 +1,7 @@
+
 import React, { useState, useMemo } from 'react';
-import { UserPlus, Search, Trophy, MapPin, Phone, Mail, Camera, X, Plus, Wallet, History, ReceiptText, ShieldCheck, Clock, CheckCircle2 } from 'lucide-react';
+// Added Loader2 and AlertCircle to imports
+import { UserPlus, Search, Trophy, MapPin, Phone, Mail, Camera, X, Plus, Wallet, History, ReceiptText, ShieldCheck, Clock, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase.ts';
 import { Member, Saving, Loan, SystemSettings } from '../types.ts';
 import AIAssistant from './AIAssistant.tsx';
@@ -65,9 +67,9 @@ const Members: React.FC<MembersProps> = ({ members, settings, savings, loans, is
   return (
     <div className="space-y-6 pb-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold">Membros</h2>
+        <h2 className="text-xl font-bold text-gray-800">Membros do Grupo</h2>
         {isAdmin && (
-          <button onClick={() => setIsAddingMember(true)} className="bg-[#aa0000] text-white p-2 rounded-xl active:scale-95 transition-transform shadow-lg">
+          <button onClick={() => setIsAddingMember(true)} className="bg-[#aa0000] text-white p-3 rounded-2xl active:scale-95 transition-transform shadow-lg shadow-[#aa0000]/20">
             <UserPlus size={20} />
           </button>
         )}
@@ -77,45 +79,60 @@ const Members: React.FC<MembersProps> = ({ members, settings, savings, loans, is
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
         <input 
           type="text" 
-          placeholder="Pesquisar..."
-          className="w-full pl-12 pr-4 py-3 bg-white border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#aa0000]/20 shadow-sm"
+          placeholder="Pesquisar por nome..."
+          className="w-full pl-12 pr-4 py-4 bg-white border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#aa0000]/20 shadow-sm font-medium"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
       </div>
 
-      <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-4">
         {filteredMembers.map(member => (
-          <div key={member.id} onClick={() => setSelectedMember(member)} className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4 cursor-pointer hover:border-[#aa0000]/30 transition-colors">
-            <div className="w-12 h-12 bg-[#1a1a1a] text-white rounded-2xl flex items-center justify-center font-bold overflow-hidden shrink-0 border border-gray-100">
+          <div key={member.id} onClick={() => setSelectedMember(member)} className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm flex items-center gap-4 cursor-pointer hover:border-[#aa0000]/30 transition-all active:scale-[0.98]">
+            <div className="w-14 h-14 bg-[#1a1a1a] text-white rounded-2xl flex items-center justify-center font-bold overflow-hidden shrink-0 border-2 border-white shadow-md">
               {member.avatar ? (
                 <img src={member.avatar} alt={member.name} className="w-full h-full object-cover" />
               ) : (
-                member.name.charAt(0)
+                <span className="text-xl">{member.name.charAt(0)}</span>
               )}
             </div>
-            <div className="flex-1">
-              <h4 className="font-bold truncate">{member.name}</h4>
-              <p className="text-[10px] text-gray-400 font-bold uppercase">{member.joiaPaid ? 'Jóia OK' : 'Jóia Pendente'}</p>
+            <div className="flex-1 min-w-0">
+              <h4 className="font-bold text-gray-800 truncate">{member.name}</h4>
+              <div className="flex items-center gap-2">
+                <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full ${member.joiaPaid ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                  Jóia: {member.joiaPaid ? 'PAGA' : 'PENDENTE'}
+                </span>
+                {member.eligibilityProgress >= 1 && (
+                  <span className="bg-yellow-50 text-yellow-600 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase flex items-center gap-1">
+                    <Trophy size={8} /> Elegível
+                  </span>
+                )}
+              </div>
             </div>
-            <Trophy className={member.eligibilityProgress >= 1 ? "text-yellow-500" : "text-gray-200"} size={20} />
+            <ChevronRight className="text-gray-300" size={20} />
           </div>
         ))}
       </div>
 
       {isAddingMember && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-end justify-center p-4">
-          <div className="bg-white w-full max-w-md rounded-t-[40px] p-8 animate-slide-up shadow-2xl relative max-h-[90vh] overflow-y-auto">
-            <button onClick={() => setIsAddingMember(false)} className="absolute top-6 right-8 text-gray-400"><X /></button>
-            <h3 className="text-xl font-bold mb-6 text-center">Novo Membro</h3>
-            <form onSubmit={handleCreateMember} className="space-y-4">
-              <Input label="Nome Completo" name="name" required />
-              <Input label="Email Corporativo" name="email" type="email" required />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-end justify-center p-0 md:p-4">
+          <div className="bg-white w-full max-w-md rounded-t-[40px] md:rounded-[40px] p-8 animate-slide-up shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <button onClick={() => setIsAddingMember(false)} className="absolute top-6 right-8 text-gray-400 p-2"><X /></button>
+            <h3 className="text-xl font-bold mb-6 text-center text-gray-800">Cadastrar Novo Membro</h3>
+            <form onSubmit={handleCreateMember} className="space-y-5">
+              <Input label="Nome Completo" name="name" placeholder="Ex: João Ribeiro" required />
+              <Input label="Email Corporativo" name="email" type="email" placeholder="email@ribeiro.lda" required />
               <Input label="Telefone" name="phone" placeholder="+258..." required />
-              <Input label="Morada" name="address" required />
-              <Input label="URL da Foto (Opcional)" name="avatar" placeholder="https://..." />
-              <button disabled={loading} type="submit" className="w-full bg-[#aa0000] text-white py-4 rounded-2xl font-bold mt-4 shadow-xl active:scale-95 transition-all">
-                {loading ? 'Processando...' : 'Adicionar Membro'}
+              <Input label="Morada / Residência" name="address" placeholder="Bairro, Rua..." required />
+              <Input label="URL da Foto de Perfil" name="avatar" placeholder="https://..." />
+              
+              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 mb-2">
+                <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Nota Operacional</p>
+                <p className="text-[11px] text-gray-600 leading-tight">O membro será criado com Jóia pendente e contadores zerados. A elegibilidade a juros requer movimentação de {settings.minMovementForInterest.toLocaleString()} MT.</p>
+              </div>
+
+              <button disabled={loading} type="submit" className="w-full bg-[#aa0000] text-white py-4 rounded-2xl font-bold shadow-xl shadow-[#aa0000]/20 active:scale-95 transition-all flex justify-center items-center gap-2">
+                {loading ? <Loader2 className="animate-spin" /> : 'Finalizar Cadastro'}
               </button>
             </form>
           </div>
@@ -136,62 +153,80 @@ const Members: React.FC<MembersProps> = ({ members, settings, savings, loans, is
   );
 };
 
+const ChevronRight = ({ className, size }: any) => (
+  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+);
+
 const Input = ({ label, ...props }: any) => (
-  <div>
-    <label className="text-[10px] font-bold text-gray-400 uppercase ml-2 mb-1 block">{label}</label>
-    <input className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#aa0000]/20" {...props} />
+  <div className="space-y-1">
+    <label className="text-[10px] font-bold text-gray-400 uppercase ml-2 block">{label}</label>
+    <input className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#aa0000]/20 font-medium text-gray-800 transition-all placeholder:text-gray-300" {...props} />
   </div>
 );
 
 const MemberDetail = ({ member, onClose, savings, loans, settings, onToggleJoia }: any) => (
   <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[200] flex items-end justify-center p-0">
-    <div className="bg-[#f3f4f6] w-full max-w-md rounded-t-[40px] animate-slide-up h-[90vh] overflow-hidden flex flex-col">
-      <div className="bg-white p-8 border-b relative">
-        <button onClick={onClose} className="absolute top-8 right-8 text-gray-400"><X /></button>
+    <div className="bg-[#f3f4f6] w-full max-w-md rounded-t-[40px] animate-slide-up h-[92vh] overflow-hidden flex flex-col shadow-2xl">
+      <div className="bg-white p-8 border-b relative shrink-0">
+        <button onClick={onClose} className="absolute top-8 right-8 text-gray-400 p-2 bg-gray-50 rounded-full"><X size={20} /></button>
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 bg-[#aa0000] text-white rounded-2xl flex items-center justify-center font-bold text-2xl overflow-hidden border-2 border-white shadow-lg">
+          <div className="w-20 h-20 bg-[#aa0000] text-white rounded-[1.5rem] flex items-center justify-center font-bold text-3xl overflow-hidden border-4 border-white shadow-xl">
             {member.avatar ? <img src={member.avatar} alt={member.name} className="w-full h-full object-cover" /> : member.name.charAt(0)}
           </div>
-          <div>
-            <h3 className="text-xl font-bold">{member.name}</h3>
-            <button onClick={onToggleJoia} className={`text-[9px] font-bold uppercase px-3 py-1 rounded-full border mt-1 active:scale-95 transition-all ${member.joiaPaid ? 'bg-green-50 text-green-600 border-green-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
-              Jóia: {member.joiaPaid ? 'Paga' : 'Pendente (Liquidar)'}
+          <div className="flex-1 min-w-0">
+            <h3 className="text-2xl font-bold text-gray-800 truncate">{member.name}</h3>
+            <button onClick={onToggleJoia} className={`text-[10px] font-bold uppercase px-4 py-1.5 rounded-full border mt-2 active:scale-95 transition-all flex items-center gap-2 ${member.joiaPaid ? 'bg-green-50 text-green-600 border-green-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
+              {member.joiaPaid ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
+              Jóia: {member.joiaPaid ? 'Paga' : 'Liquidar Agora'}
             </button>
           </div>
         </div>
       </div>
+      
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        <div className="grid grid-cols-2 gap-3 text-center">
-          <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
-            <p className="text-[9px] font-bold text-gray-400 uppercase">Total Poupado</p>
-            <p className="font-bold text-lg">{member.totalSavings.toLocaleString()} MT</p>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm text-center">
+            <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Total Poupado</p>
+            <p className="font-bold text-xl text-gray-800">{member.totalSavings.toLocaleString()} MT</p>
           </div>
-          <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
-            <p className="text-[9px] font-bold text-gray-400 uppercase">Movimentado</p>
-            <p className="font-bold text-[#aa0000] text-lg">{member.totalLoansTaken.toLocaleString()} MT</p>
+          <div className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm text-center">
+            <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Movimentado</p>
+            <p className="font-bold text-[#aa0000] text-xl">{member.totalLoansTaken.toLocaleString()} MT</p>
           </div>
         </div>
         
         <AIAssistant member={member} savings={savings} loans={loans} settings={settings} />
         
-        <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm">
-          <h4 className="text-[10px] font-bold text-gray-400 uppercase mb-4 flex items-center gap-2"><History size={14} /> Histórico Recente</h4>
-          <div className="space-y-3">
+        <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
+          <h4 className="text-[10px] font-bold text-gray-400 uppercase mb-5 flex items-center gap-2"><History size={16} className="text-[#aa0000]" /> Extrato de Poupança</h4>
+          <div className="space-y-4">
             {savings.length > 0 ? (
-              savings.slice(0, 5).map((s: any) => (
+              savings.slice(0, 8).map((s: any) => (
                 <div key={s.id} className="flex justify-between items-center py-2 border-b last:border-0 border-gray-50">
-                  <span className="text-xs font-medium text-gray-600">{new Date(s.date).toLocaleDateString('pt-BR')}</span>
-                  <span className="text-xs font-bold text-gray-800">{s.amount.toLocaleString()} MT</span>
+                  <div>
+                    <span className="text-xs font-bold text-gray-700 block">{new Date(s.date).toLocaleDateString('pt-BR')}</span>
+                    <span className="text-[9px] text-gray-400 uppercase font-bold">Depósito Mensal</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-sm font-bold text-gray-800 block">{s.amount.toLocaleString()} MT</span>
+                    {s.lateFee > 0 && <span className="text-[8px] font-bold text-red-500 uppercase">+ {s.lateFee} MT Multa</span>}
+                  </div>
                 </div>
               ))
             ) : (
-              <p className="text-xs text-gray-400 text-center py-4">Nenhum registro de poupança.</p>
+              <div className="py-10 text-center opacity-40">
+                <ReceiptText size={40} className="mx-auto mb-2" />
+                <p className="text-xs font-bold uppercase tracking-widest">Sem movimentações</p>
+              </div>
             )}
           </div>
         </div>
       </div>
-      <div className="bg-white p-6 border-t border-gray-100">
-        <button onClick={onClose} className="w-full bg-[#1a1a1a] text-white py-4 rounded-2xl font-bold active:scale-95 transition-transform">Fechar Detalhes</button>
+      
+      <div className="bg-white p-8 border-t border-gray-100 safe-area-pb">
+        <button onClick={onClose} className="w-full bg-[#1a1a1a] text-white py-4 rounded-2xl font-bold shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-2">
+          Fechar Perfil
+        </button>
       </div>
     </div>
   </div>

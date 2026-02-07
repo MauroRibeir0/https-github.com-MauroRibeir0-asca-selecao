@@ -1,4 +1,5 @@
-import { GoogleGenAI } from "@google/genai";
+
+import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { Member, Saving, Loan } from "../types.ts";
 
 export const analyzeMemberPerformance = async (
@@ -7,13 +8,8 @@ export const analyzeMemberPerformance = async (
   loans: Loan[],
   settings: any
 ) => {
-  // Verificação de segurança para a API Key
-  const apiKey = typeof process !== 'undefined' ? process.env.API_KEY : undefined;
-  if (!apiKey) {
-    return "Configuração de IA indisponível (API_KEY ausente).";
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
+  // Always use standard initialization pattern as per Google GenAI guidelines.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const prompt = `
     Analise o desempenho financeiro deste membro do grupo de poupança ASCA Seleção:
@@ -33,10 +29,12 @@ export const analyzeMemberPerformance = async (
   `;
 
   try {
-    const response = await ai.models.generateContent({
+    // Correctly call generateContent with model and prompt as a direct parameter object.
+    const response: GenerateContentResponse = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt,
     });
+    // Access text as a property directly.
     return response.text;
   } catch (error) {
     console.error("Erro na análise Gemini:", error);

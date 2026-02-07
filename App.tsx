@@ -10,7 +10,14 @@ import {
   Bell,
   Loader2,
   Lock,
-  PieChart
+  Menu as MenuIcon,
+  X,
+  User,
+  ShieldCheck,
+  LogOut,
+  Info,
+  ChevronRight,
+  Gavel
 } from 'lucide-react';
 import { supabase } from './lib/supabase.ts';
 import Dashboard from './components/Dashboard.tsx';
@@ -30,6 +37,8 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'members' | 'savings' | 'loans' | 'reports' | 'settings'>('dashboard');
   const [settings, setSettings] = useState<SystemSettings>(INITIAL_SETTINGS);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showRules, setShowRules] = useState(false);
   
   const [members, setMembers] = useState<Member[]>([]);
   const [savings, setSavings] = useState<Saving[]>([]);
@@ -153,6 +162,11 @@ const App: React.FC = () => {
     return { totalGroupSavings, activeLoans, totalLateFees, totalLoanInterests };
   }, [savings, loans]);
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setShowMenu(false);
+  };
+
   if (!session) return <Auth onLogin={() => fetchData()} />;
 
   if (loading) return (
@@ -179,18 +193,26 @@ const App: React.FC = () => {
     <div className="min-h-screen pb-24 max-w-md mx-auto bg-[#f3f4f6] shadow-xl relative flex flex-col h-full overflow-hidden">
       <header className="bg-[#aa0000] text-white p-6 pt-10 sticky top-0 z-50 rounded-b-[2.5rem] shadow-lg safe-area-pt">
         <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">ASCA Seleção</h1>
-            <p className="text-[10px] opacity-80 uppercase tracking-widest font-bold">
-              {currentUser?.name || 'Membro'} • {isAdmin ? 'GESTOR' : 'INVESTIDOR'}
-            </p>
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setShowMenu(true)}
+              className="bg-white/20 p-2.5 rounded-xl active:scale-95 transition-transform backdrop-blur-md"
+            >
+              <MenuIcon size={24} />
+            </button>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight">ASCA Seleção</h1>
+              <p className="text-[9px] opacity-80 uppercase tracking-widest font-bold leading-none">
+                Ribeiro, Lda.
+              </p>
+            </div>
           </div>
           <button 
             onClick={() => setShowNotifications(!showNotifications)}
-            className="bg-white/20 p-3 rounded-2xl active:scale-95 transition-transform backdrop-blur-md relative"
+            className="bg-white/20 p-2.5 rounded-xl active:scale-95 transition-transform backdrop-blur-md relative"
           >
             <Bell size={20} />
-            <span className="absolute top-2 right-2 w-2 h-2 bg-yellow-400 rounded-full border-2 border-[#aa0000]"></span>
+            <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-yellow-400 rounded-full border border-[#aa0000]"></span>
           </button>
         </div>
       </header>
@@ -198,6 +220,94 @@ const App: React.FC = () => {
       <main className="flex-1 overflow-y-auto px-4 pt-6 animate-slide-up pb-10">
         {renderContent()}
       </main>
+
+      {/* MENU SANDWICH OVERLAY */}
+      {showMenu && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] animate-in fade-in duration-300">
+          <div className="absolute top-0 left-0 bottom-0 w-3/4 max-w-xs bg-white shadow-2xl animate-slide-right flex flex-col">
+            <div className="p-8 pt-12 bg-[#aa0000] text-white rounded-br-[3rem] relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12 blur-2xl"></div>
+              <button onClick={() => setShowMenu(false)} className="absolute top-6 right-6 p-2 bg-white/20 rounded-full"><X size={20}/></button>
+              
+              <div className="w-16 h-16 bg-white rounded-2xl mb-4 flex items-center justify-center border-4 border-[#aa0000]/20 shadow-xl overflow-hidden">
+                {currentUser?.avatar ? <img src={currentUser.avatar} className="w-full h-full object-cover" /> : <User size={32} className="text-[#aa0000]" />}
+              </div>
+              <h2 className="text-lg font-bold">{currentUser?.name || 'Membro'}</h2>
+              <p className="text-xs opacity-70 font-medium">{currentUser?.email}</p>
+              <div className="mt-2 inline-block px-3 py-1 bg-white/20 rounded-full text-[9px] font-black uppercase tracking-widest">
+                {isAdmin ? 'Gestor Administrativo' : 'Investidor Ativo'}
+              </div>
+            </div>
+
+            <nav className="flex-1 p-6 space-y-2 mt-4">
+              <MenuLink 
+                icon={<User size={20} />} 
+                label="Meu Perfil" 
+                onClick={() => { 
+                  // Abre o detalhe do membro (isso poderia ser refinado para abrir direto o modal de perfil)
+                  setActiveTab('members');
+                  setShowMenu(false);
+                }} 
+              />
+              <MenuLink 
+                icon={<ShieldCheck size={20} />} 
+                label="Regras do Grupo" 
+                onClick={() => { 
+                  setShowRules(true);
+                  setShowMenu(false);
+                }} 
+              />
+              <div className="h-px bg-gray-100 my-4"></div>
+              <button 
+                onClick={handleLogout}
+                className="w-full flex items-center gap-4 p-4 text-red-600 font-bold hover:bg-red-50 rounded-2xl transition-all"
+              >
+                <LogOut size={20} />
+                <span className="text-sm">Sair do Sistema</span>
+              </button>
+            </nav>
+
+            <div className="p-8 text-center">
+              <p className="text-[10px] text-gray-300 font-black uppercase tracking-widest mb-1">ASCA Seleção v1.2</p>
+              <div className="w-10 h-1 bg-[#aa0000]/10 mx-auto rounded-full"></div>
+            </div>
+          </div>
+          <div className="flex-1 h-full cursor-pointer" onClick={() => setShowMenu(false)}></div>
+        </div>
+      )}
+
+      {/* MODAL REGRAS DO GRUPO */}
+      {showRules && (
+        <div className="fixed inset-0 bg-[#1a1a1a]/95 backdrop-blur-md z-[300] p-6 flex items-center justify-center overflow-y-auto">
+          <div className="bg-white w-full max-w-sm rounded-[3rem] p-8 relative shadow-2xl animate-slide-up">
+            <button onClick={() => setShowRules(false)} className="absolute top-6 right-8 p-2 bg-gray-50 text-gray-400 rounded-full hover:bg-gray-100"><X size={20}/></button>
+            
+            <div className="flex items-center gap-3 mb-6">
+              <div className="bg-[#aa0000] p-3 rounded-2xl shadow-lg shadow-[#aa0000]/20">
+                <ShieldCheck className="text-white" size={24} />
+              </div>
+              <h3 className="text-xl font-black text-[#1a1a1a] uppercase tracking-tight">Estatutos ASCA</h3>
+            </div>
+
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+              <RuleItem title="Adesão" desc="Jóia obrigatória de 1.000,00 MT para custos operacionais." />
+              <RuleItem title="Mensalidade" desc="Variável entre 2.000,00 MT e 5.000,00 MT mensais." />
+              <RuleItem title="Pontualidade" desc="Depósitos até o dia 10. Após o dia 10, incide multa de 15%." />
+              <RuleItem title="Elegibilidade" desc="Movimentação mínima de 50.000,00 MT/ano para recebimento de juros." />
+              <RuleItem title="Empréstimos" desc="Taxa fixa de 15% sobre o valor solicitado com prazo de 30 dias." />
+              <RuleItem title="Inadimplência" desc="Atrasos superiores a 30 dias resultam na duplicação imediata dos juros." />
+              <RuleItem title="Retorno Fixo" desc="Bónus garantido de 7.500,00 MT no final do ciclo para elegíveis." />
+            </div>
+
+            <button 
+              onClick={() => setShowRules(false)} 
+              className="w-full bg-[#1a1a1a] text-white py-4 rounded-2xl font-bold mt-8 shadow-xl active:scale-95 transition-transform"
+            >
+              Ciente das Regras
+            </button>
+          </div>
+        </div>
+      )}
 
       <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 px-4 py-4 flex justify-between items-center z-50 max-w-md mx-auto rounded-t-[2.5rem] shadow-[0_-8px_30px_rgba(0,0,0,0.08)] safe-area-pb">
         <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={20} />} label="Início" />
@@ -208,7 +318,7 @@ const App: React.FC = () => {
         {isAdmin && <NavButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={<SettingsIcon size={20} />} label="Ajustes" />}
       </nav>
 
-      {/* MODAL DE NOTIFICAÇÕES (Push Simulator) */}
+      {/* MODAL DE NOTIFICAÇÕES */}
       {showNotifications && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-start justify-center pt-24 px-6" onClick={() => setShowNotifications(false)}>
           <div className="bg-white w-full rounded-3xl p-6 shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
@@ -224,6 +334,26 @@ const App: React.FC = () => {
     </div>
   );
 };
+
+const MenuLink = ({ icon, label, onClick }: any) => (
+  <button 
+    onClick={onClick}
+    className="w-full flex items-center justify-between p-4 bg-gray-50/50 hover:bg-[#aa0000]/5 rounded-2xl transition-all group active:scale-[0.98]"
+  >
+    <div className="flex items-center gap-4">
+      <div className="text-gray-400 group-hover:text-[#aa0000] transition-colors">{icon}</div>
+      <span className="text-sm font-bold text-gray-700">{label}</span>
+    </div>
+    <ChevronRight size={16} className="text-gray-300 group-hover:text-[#aa0000]" />
+  </button>
+);
+
+const RuleItem = ({ title, desc }: any) => (
+  <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+    <h4 className="text-[10px] font-black uppercase text-[#aa0000] tracking-widest mb-1">{title}</h4>
+    <p className="text-xs text-gray-600 leading-tight font-medium">{desc}</p>
+  </div>
+);
 
 const NavButton: React.FC<{ active: boolean, onClick: () => void, icon: React.ReactNode, label: string }> = ({ active, onClick, icon, label }) => (
   <button onClick={onClick} className={`flex flex-col items-center gap-1 flex-1 transition-all duration-300 ${active ? 'text-[#aa0000]' : 'text-gray-400'}`}>

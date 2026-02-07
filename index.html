@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -34,9 +35,16 @@
         .animate-slide-up {
             animation: slideUp 0.3s ease-out;
         }
+        .animate-slide-right {
+            animation: slideRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
         @keyframes slideUp {
             from { transform: translateY(20px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes slideRight {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(0); }
         }
         ::-webkit-scrollbar {
             width: 4px;
@@ -47,6 +55,12 @@
         ::-webkit-scrollbar-thumb {
             background: #aa0000;
             border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #aa000033;
         }
         /* Ajuste para Notch do iPhone */
         .safe-area-pt { padding-top: env(safe-area-inset-top); }
